@@ -1,0 +1,6 @@
+{
+  "name": "Muebles J&L — Taller OS",
+  "description": "Sistema operativo integral de carpintería y diseño industrial para Muebles J&L (Villa Luzuriaga): optimizador de corte 2D CAD, gestión de pedidos, inventario de taller, catálogo 3D WebGL, finanzas y logística GPS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

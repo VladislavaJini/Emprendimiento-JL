@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useWorkshopCloud } from '../context/WorkshopCloudContext';
 
 interface BoardOption {
   name: string;
@@ -253,9 +254,16 @@ function computeGuillotineLayout(
 }
 
 export const OptimizadorScreen: React.FC = () => {
+  const {
+    cuts,
+    upsertCut,
+    removeCut,
+    clearAllCuts,
+    restoreDefaultCuts,
+    isCloudConnected,
+  } = useWorkshopCloud();
   const [boardIndex, setBoardIndex] = useState(0);
   const [kerfMm, setKerfMm] = useState<number>(3.2);
-  const [cuts, setCuts] = useState<CutItem[]>(INITIAL_CUTS);
   const [isRecomputing, setIsRecomputing] = useState(false);
   const [isVerticalGrain, setIsVerticalGrain] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
@@ -314,15 +322,19 @@ export const OptimizadorScreen: React.FC = () => {
   };
 
   const handleStartBlankOrder = () => {
-    setCuts([]);
+    clearAllCuts();
     setSelectedCutId(null);
     setRetazoStocked(false);
     setShowAddForm(true);
-    triggerToast('Nueva orden iniciada • Placa entera virgen (2750 × 1830 mm)');
+    triggerToast(
+      isCloudConnected
+        ? 'Nueva orden iniciada en Nube Firebase • Placa entera virgen'
+        : 'Nueva orden iniciada • Placa entera virgen (2750 × 1830 mm)'
+    );
   };
 
   const handleRestoreDemoOrder = () => {
-    setCuts(INITIAL_CUTS);
+    restoreDefaultCuts();
     setSelectedCutId('cut-1');
     setShowAddForm(false);
     triggerToast('Orden de ejemplo cargada (14 piezas)');
@@ -333,7 +345,7 @@ export const OptimizadorScreen: React.FC = () => {
     const l = Math.min(currentBoard.lengthMm, Math.max(50, Number(newCutLength) || 600));
     const w = Math.min(currentBoard.widthMm, Math.max(50, Number(newCutWidth) || 400));
     const q = Math.min(30, Math.max(1, Number(newCutQty) || 1));
-    const name = newCutName.trim() || `Pieza Personalizada #${cuts.length + 1}`;
+    const name = (newCutName.trim() || `Pieza Personalizada #${cuts.length + 1}`).slice(0, 120);
 
     const newItem: CutItem = {
       id: `cut-${Date.now()}`,
@@ -341,18 +353,18 @@ export const OptimizadorScreen: React.FC = () => {
       lengthMm: l,
       widthMm: w,
       quantity: q,
-      edgeSpec: newCutEdge,
+      edgeSpec: newCutEdge.slice(0, 80),
       respectGrain: newCutGrain,
     };
 
-    setCuts((prev) => [...prev, newItem]);
+    upsertCut(newItem);
     setSelectedCutId(newItem.id);
     setNewCutName('');
     triggerToast(`Corte agregado: ${name} (${l}×${w} mm ×${q})`);
   };
 
   const handleRemoveCut = (id: string, name: string) => {
-    setCuts((prev) => prev.filter((c) => c.id !== id));
+    removeCut(id);
     if (selectedCutId === id) {
       setSelectedCutId(null);
     }
@@ -360,15 +372,14 @@ export const OptimizadorScreen: React.FC = () => {
   };
 
   const handleUpdateCutQty = (id: string, delta: number) => {
-    setCuts((prev) =>
-      prev
-        .map((c) => {
-          if (c.id !== id) return c;
-          const nextQty = c.quantity + delta;
-          return nextQty > 0 ? { ...c, quantity: nextQty } : null;
-        })
-        .filter(Boolean) as CutItem[]
-    );
+    const target = cuts.find((c) => c.id === id);
+    if (!target) return;
+    const nextQty = target.quantity + delta;
+    if (nextQty <= 0) {
+      removeCut(id);
+    } else {
+      upsertCut({ ...target, quantity: Math.min(500, nextQty) });
+    }
   };
 
   const handleSwapBoard = () => {

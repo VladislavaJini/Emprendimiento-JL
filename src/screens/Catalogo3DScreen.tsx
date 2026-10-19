@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { useWorkshopCloud } from '../context/WorkshopCloudContext';
+import { ScreenId } from '../types';
 import {
   generateFurnitureGlbUrl,
   getInitialWoodTextures,
@@ -76,7 +78,12 @@ const INITIAL_CATALOG_MODELS: CatalogModel[] = [
 
 const STORAGE_KEY_CATALOG_PNGS = 'taller_os_catalog_pngs_v1';
 
-export const Catalogo3DScreen: React.FC = () => {
+interface Catalogo3DScreenProps {
+  onNavigate?: (screen: ScreenId) => void;
+}
+
+export const Catalogo3DScreen: React.FC<Catalogo3DScreenProps> = ({ onNavigate }) => {
+  const { catalogPngMap, saveCatalogPng } = useWorkshopCloud();
   const canvasMountRef = useRef<HTMLDivElement | null>(null);
   const glbInputRef = useRef<HTMLInputElement | null>(null);
   const pngTextureInputRef = useRef<HTMLInputElement | null>(null);
@@ -104,21 +111,21 @@ export const Catalogo3DScreen: React.FC = () => {
   const [drawerMeshTarget, setDrawerMeshTarget] = useState<string>('auto');
   const [isLoadingGlb, setIsLoadingGlb] = useState<boolean>(true);
 
-  const [catalogModels, setCatalogModels] = useState<CatalogModel[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_CATALOG_PNGS);
-      if (saved) {
-        const parsedMap: Record<string, string> = JSON.parse(saved);
-        return INITIAL_CATALOG_MODELS.map((m) => ({
-          ...m,
-          pngPreviewUrl: parsedMap[m.id] || null,
-        }));
-      }
-    } catch {
-      // ignore storage errors
-    }
-    return INITIAL_CATALOG_MODELS;
-  });
+  const [catalogModels, setCatalogModels] = useState<CatalogModel[]>(() =>
+    INITIAL_CATALOG_MODELS.map((m) => ({
+      ...m,
+      pngPreviewUrl: catalogPngMap[m.id] || null,
+    }))
+  );
+
+  useEffect(() => {
+    setCatalogModels((prev) =>
+      prev.map((m) => ({
+        ...m,
+        pngPreviewUrl: catalogPngMap[m.id] ?? m.pngPreviewUrl,
+      }))
+    );
+  }, [catalogPngMap]);
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -504,21 +511,23 @@ export const Catalogo3DScreen: React.FC = () => {
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
-      setCatalogModels((prev) => {
-        const updated = prev.map((m) =>
-          m.id === modelId ? { ...m, pngPreviewUrl: dataUrl } : m
-        );
-        try {
-          const mapToSave: Record<string, string> = {};
-          updated.forEach((item) => {
-            if (item.pngPreviewUrl) mapToSave[item.id] = item.pngPreviewUrl;
-          });
-          localStorage.setItem(STORAGE_KEY_CATALOG_PNGS, JSON.stringify(mapToSave));
-        } catch {
-          // ignore storage quota errors
-        }
-        return updated;
-      });
+      const targetModel = catalogModels.find((m) => m.id === modelId);
+      setCatalogModels((prev) =>
+        prev.map((m) => (m.id === modelId ? { ...m, pngPreviewUrl: dataUrl } : m))
+      );
+      if (targetModel) {
+        saveCatalogPng({
+          modelId: targetModel.id,
+          shortTitle: targetModel.shortTitle,
+          fullName: targetModel.fullName,
+          glbFileName: targetModel.glbFileName,
+          specsText: targetModel.specsText,
+          dimensions: targetModel.dimensions,
+          costInsumos: targetModel.costInsumos,
+          pvp: targetModel.pvp,
+          pngPreviewUrl: dataUrl,
+        });
+      }
       showToast(`Imagen .PNG asignada al modelo en catálogo`);
     };
     reader.readAsDataURL(file);
@@ -562,12 +571,12 @@ export const Catalogo3DScreen: React.FC = () => {
 
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto px-margin pb-6 gap-space-lg">
-      {/* Sección Header Contextual */}
+      {/* Sección Header Contextual: Ventana Independiente Modelo 3D */}
       <div className="flex flex-col gap-1 pt-1">
         <div className="flex items-center justify-between gap-space-sm flex-wrap">
           <div className="flex items-center gap-2">
             <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface font-bold tracking-tight">
-              Catálogo &amp; Visor 3D
+              Modelo 3D
             </h1>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary-container text-on-primary-container font-label-md text-label-md font-semibold tracking-wide shadow-sm">
               <span className="w-2 h-2 rounded-full bg-surface-tint"></span>
@@ -575,26 +584,39 @@ export const Catalogo3DScreen: React.FC = () => {
             </span>
           </div>
 
-          {/* Direct Blender .GLB File Upload Trigger */}
-          <input
-            ref={glbInputRef}
-            type="file"
-            accept=".glb,.gltf"
-            onChange={handleUploadGlbFile}
-            className="hidden"
-          />
-          <button
-            type="button"
-            onClick={() => glbInputRef.current?.click()}
-            className="flex items-center gap-1.5 text-primary hover:text-on-primary hover:bg-primary font-label-md text-label-md bg-surface-container-high px-3 py-1.5 rounded-full transition-all active:scale-95"
-          >
-            <span className="material-symbols-outlined text-[16px]">upload_file</span>
-            <span>Cargar .GLB (Blender)</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onNavigate && (
+              <button
+                type="button"
+                onClick={() => onNavigate('catalogo')}
+                className="flex items-center gap-1.5 text-secondary hover:bg-surface-bright font-label-md text-label-md bg-surface-container-high px-3 py-1.5 rounded-full transition-all active:scale-95"
+              >
+                <span className="material-symbols-outlined text-[16px]">list_alt</span>
+                <span>Ir a Catálogo</span>
+              </button>
+            )}
+
+            {/* Direct Blender .GLB File Upload Trigger */}
+            <input
+              ref={glbInputRef}
+              type="file"
+              accept=".glb,.gltf"
+              onChange={handleUploadGlbFile}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => glbInputRef.current?.click()}
+              className="flex items-center gap-1.5 text-primary hover:text-on-primary hover:bg-primary font-label-md text-label-md bg-surface-container-high px-3 py-1.5 rounded-full transition-all active:scale-95"
+            >
+              <span className="material-symbols-outlined text-[16px]">upload_file</span>
+              <span>Cargar .GLB (Blender)</span>
+            </button>
+          </div>
         </div>
         <p className="font-body-md text-body-md text-on-surface-variant">
-          Previsualización tridimensional WebGL (.glb) y mapeo de texturas de vetas (.png) en
-          tapas de cajón.
+          Visor tridimensional WebGL (.glb) independiente y mapeo de texturas de vetas (.png)
+          en tapas de cajón.
         </p>
       </div>
 
@@ -1157,13 +1179,13 @@ export const Catalogo3DScreen: React.FC = () => {
         </button>
       </div>
 
-      {/* Galería Horizontal de Modelos del Catálogo (Carga personalizada de archivo .PNG y .GLB) */}
+      {/* Galería Horizontal de Modelos 3D Predefinidos (.GLB y Portada .PNG) */}
       <div className="flex flex-col gap-space-sm pt-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px] text-primary">shelves</span>
+            <span className="material-symbols-outlined text-[20px] text-primary">view_in_ar</span>
             <h2 className="font-title-sm text-title-sm text-on-surface font-bold">
-              Otros Modelos en Catálogo
+              Presets 3D Disponibles (.GLB)
             </h2>
           </div>
           <span className="font-label-md text-[12px] text-primary font-medium">

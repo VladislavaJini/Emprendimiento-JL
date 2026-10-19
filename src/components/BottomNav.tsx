@@ -16,9 +16,10 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'optimizador-2d', label: 'Optimizador 2D', icon: 'grid_view' },
   { id: 'pedidos', label: 'Pedidos', icon: 'receipt_long' },
   { id: 'inventario', label: 'Inventario', icon: 'inventory_2' },
-  { id: 'catalogo-3d', label: 'Catálogo & 3D', icon: 'view_in_ar' },
+  { id: 'catalogo', label: 'Catálogo', icon: 'list_alt' },
+  { id: 'catalogo-3d', label: 'Modelo 3D', icon: 'view_in_ar' },
   { id: 'finanzas', label: 'Finanzas', icon: 'payments' },
-  { id: 'fletes-y-gps', label: 'Fletes & GPS', icon: 'local_shipping' },
+  { id: 'fletes-y-gps', label: 'Fletes & Rutas', icon: 'local_shipping' },
 ];
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeScreen, onNavigate }) => {

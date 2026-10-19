@@ -1,0 +1,536 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Primitive Helpers
+    // =========================================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // =========================================================================
+    // Entity Validation Blueprints (Synchronized with firebase-blueprint.json)
+    // =========================================================================
+
+    function isValidCutItem(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'name',
+        'lengthMm',
+        'widthMm',
+        'quantity',
+        'edgeSpec',
+        'respectGrain',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'name',
+        'lengthMm',
+        'widthMm',
+        'quantity',
+        'edgeSpec',
+        'respectGrain',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.ownerId is string &&
+      data.ownerId.size() >= 1 &&
+      data.ownerId.size() <= 128 &&
+      data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerId == request.auth.uid &&
+      data.name is string &&
+      data.name.size() >= 1 &&
+      data.name.size() <= 120 &&
+      data.lengthMm is number &&
+      data.lengthMm >= 10 &&
+      data.lengthMm <= 5000 &&
+      data.widthMm is number &&
+      data.widthMm >= 10 &&
+      data.widthMm <= 5000 &&
+      data.quantity is number &&
+      data.quantity >= 1 &&
+      data.quantity <= 500 &&
+      data.edgeSpec is string &&
+      data.edgeSpec.size() <= 80 &&
+      data.respectGrain is bool &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidOrderItem(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'code',
+        'badgeText',
+        'badgeImminent',
+        'badgeDelivered',
+        'client',
+        'city',
+        'distance',
+        'distanceHighlight',
+        'image',
+        'furnitureIcon',
+        'furnitureTitle',
+        'deliveryLabel',
+        'deliveryUrgent',
+        'specNote',
+        'status',
+        'balanceAmount',
+        'totalAmount',
+        'paidBadge',
+        'paidFullAmount',
+        'whatsappPhone',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'code',
+        'badgeText',
+        'badgeImminent',
+        'badgeDelivered',
+        'client',
+        'city',
+        'distance',
+        'distanceHighlight',
+        'image',
+        'furnitureIcon',
+        'furnitureTitle',
+        'deliveryLabel',
+        'deliveryUrgent',
+        'specNote',
+        'status',
+        'balanceAmount',
+        'totalAmount',
+        'paidBadge',
+        'paidFullAmount',
+        'whatsappPhone',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.ownerId is string &&
+      data.ownerId.size() >= 1 &&
+      data.ownerId.size() <= 128 &&
+      data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerId == request.auth.uid &&
+      data.code is string &&
+      data.code.size() >= 1 &&
+      data.code.size() <= 40 &&
+      data.badgeText is string &&
+      data.badgeText.size() <= 60 &&
+      data.badgeImminent is bool &&
+      data.badgeDelivered is bool &&
+      data.client is string &&
+      data.client.size() >= 1 &&
+      data.client.size() <= 120 &&
+      data.city is string &&
+      data.city.size() <= 80 &&
+      data.distance is string &&
+      data.distance.size() <= 40 &&
+      data.distanceHighlight is bool &&
+      data.image is string &&
+      data.image.size() <= 1200 &&
+      data.furnitureIcon is string &&
+      data.furnitureIcon.size() <= 60 &&
+      data.furnitureTitle is string &&
+      data.furnitureTitle.size() >= 1 &&
+      data.furnitureTitle.size() <= 160 &&
+      data.deliveryLabel is string &&
+      data.deliveryLabel.size() <= 80 &&
+      data.deliveryUrgent is bool &&
+      data.specNote is string &&
+      data.specNote.size() <= 160 &&
+      data.status is string &&
+      data.status.size() <= 30 &&
+      data.status in ['en-proceso', 'terminado', 'embalado', 'entregado'] &&
+      data.balanceAmount is string &&
+      data.balanceAmount.size() <= 40 &&
+      data.totalAmount is string &&
+      data.totalAmount.size() <= 40 &&
+      data.paidBadge is string &&
+      data.paidBadge.size() <= 40 &&
+      data.paidFullAmount is string &&
+      data.paidFullAmount.size() <= 40 &&
+      data.whatsappPhone is string &&
+      data.whatsappPhone.size() <= 40 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidInventoryItem(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'cat',
+        'categoryLabel',
+        'specLabel',
+        'cornerTag',
+        'title',
+        'priceLabel',
+        'image',
+        'stock',
+        'minSuggested',
+        'unit',
+        'statusType',
+        'urgentButtonLabel',
+        'urgentButtonIcon',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'cat',
+        'categoryLabel',
+        'specLabel',
+        'cornerTag',
+        'title',
+        'priceLabel',
+        'image',
+        'stock',
+        'minSuggested',
+        'unit',
+        'statusType',
+        'urgentButtonLabel',
+        'urgentButtonIcon',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.ownerId is string &&
+      data.ownerId.size() >= 1 &&
+      data.ownerId.size() <= 128 &&
+      data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerId == request.auth.uid &&
+      data.cat is string &&
+      data.cat.size() <= 30 &&
+      data.cat in ['placas', 'cantos', 'herrajes', 'insumos'] &&
+      data.categoryLabel is string &&
+      data.categoryLabel.size() <= 60 &&
+      data.specLabel is string &&
+      data.specLabel.size() <= 80 &&
+      data.cornerTag is string &&
+      data.cornerTag.size() <= 20 &&
+      data.title is string &&
+      data.title.size() >= 1 &&
+      data.title.size() <= 140 &&
+      data.priceLabel is string &&
+      data.priceLabel.size() <= 60 &&
+      data.image is string &&
+      data.image.size() <= 1200 &&
+      data.stock is number &&
+      data.stock >= 0 &&
+      data.stock <= 1000000 &&
+      data.minSuggested is number &&
+      data.minSuggested >= 0 &&
+      data.minSuggested <= 1000000 &&
+      data.unit is string &&
+      data.unit.size() <= 30 &&
+      data.statusType is string &&
+      data.statusType.size() <= 30 &&
+      data.statusType in ['bajo', 'critico', 'normal', 'optimo'] &&
+      data.urgentButtonLabel is string &&
+      data.urgentButtonLabel.size() <= 60 &&
+      data.urgentButtonIcon is string &&
+      data.urgentButtonIcon.size() <= 40 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidCashMovement(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'type',
+        'title',
+        'subtitle',
+        'amountFormatted',
+        'entity',
+        'paymentMethod',
+        'paymentLabel',
+        'timestamp',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'type',
+        'title',
+        'subtitle',
+        'amountFormatted',
+        'entity',
+        'paymentMethod',
+        'paymentLabel',
+        'timestamp',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.ownerId is string &&
+      data.ownerId.size() >= 1 &&
+      data.ownerId.size() <= 128 &&
+      data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerId == request.auth.uid &&
+      data.type is string &&
+      data.type.size() <= 20 &&
+      data.type in ['ingreso', 'egreso'] &&
+      data.title is string &&
+      data.title.size() >= 1 &&
+      data.title.size() <= 160 &&
+      data.subtitle is string &&
+      data.subtitle.size() <= 160 &&
+      data.amountFormatted is string &&
+      data.amountFormatted.size() <= 40 &&
+      data.entity is string &&
+      data.entity.size() <= 120 &&
+      data.paymentMethod is string &&
+      data.paymentMethod.size() <= 30 &&
+      data.paymentMethod in ['efectivo', 'mp', 'factura'] &&
+      data.paymentLabel is string &&
+      data.paymentLabel.size() <= 60 &&
+      data.timestamp is string &&
+      data.timestamp.size() <= 60 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidCatalogMeta(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'modelId',
+        'shortTitle',
+        'fullName',
+        'glbFileName',
+        'specsText',
+        'dimensions',
+        'costInsumos',
+        'pvp',
+        'pngPreviewUrl',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'modelId',
+        'shortTitle',
+        'fullName',
+        'glbFileName',
+        'specsText',
+        'dimensions',
+        'costInsumos',
+        'pvp',
+        'pngPreviewUrl',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.ownerId is string &&
+      data.ownerId.size() >= 1 &&
+      data.ownerId.size() <= 128 &&
+      data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerId == request.auth.uid &&
+      data.modelId is string &&
+      data.modelId.size() >= 1 &&
+      data.modelId.size() <= 60 &&
+      data.shortTitle is string &&
+      data.shortTitle.size() <= 100 &&
+      data.fullName is string &&
+      data.fullName.size() <= 140 &&
+      data.glbFileName is string &&
+      data.glbFileName.size() <= 120 &&
+      data.specsText is string &&
+      data.specsText.size() <= 120 &&
+      data.dimensions is string &&
+      data.dimensions.size() <= 40 &&
+      data.costInsumos is string &&
+      data.costInsumos.size() <= 40 &&
+      data.pvp is string &&
+      data.pvp.size() <= 40 &&
+      data.pngPreviewUrl is string &&
+      data.pngPreviewUrl.size() <= 800000 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // =========================================================================
+    // Collection Rules
+    // =========================================================================
+
+    match /cuts/{cutId} {
+      allow get: if isVerifiedUser() && isValidId(cutId) && existing().ownerId == request.auth.uid;
+      allow list: if isVerifiedUser() && existing().ownerId == request.auth.uid;
+      allow create: if isVerifiedUser() &&
+        isValidId(cutId) &&
+        isValidCutItem(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(cutId) &&
+        isValidCutItem(incoming()) &&
+        existing().ownerId == request.auth.uid &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name',
+          'lengthMm',
+          'widthMm',
+          'quantity',
+          'edgeSpec',
+          'respectGrain',
+          'updatedAt'
+        ]);
+      allow delete: if isVerifiedUser() && isValidId(cutId) && existing().ownerId == request.auth.uid;
+    }
+
+    match /orders/{orderId} {
+      allow get: if isVerifiedUser() && isValidId(orderId) && existing().ownerId == request.auth.uid;
+      allow list: if isVerifiedUser() && existing().ownerId == request.auth.uid;
+      allow create: if isVerifiedUser() &&
+        isValidId(orderId) &&
+        isValidOrderItem(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(orderId) &&
+        isValidOrderItem(incoming()) &&
+        existing().ownerId == request.auth.uid &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'code',
+          'badgeText',
+          'badgeImminent',
+          'badgeDelivered',
+          'client',
+          'city',
+          'distance',
+          'distanceHighlight',
+          'image',
+          'furnitureIcon',
+          'furnitureTitle',
+          'deliveryLabel',
+          'deliveryUrgent',
+          'specNote',
+          'status',
+          'balanceAmount',
+          'totalAmount',
+          'paidBadge',
+          'paidFullAmount',
+          'whatsappPhone',
+          'updatedAt'
+        ]);
+      allow delete: if isVerifiedUser() && isValidId(orderId) && existing().ownerId == request.auth.uid;
+    }
+
+    match /inventory/{itemId} {
+      allow get: if isVerifiedUser() && isValidId(itemId) && existing().ownerId == request.auth.uid;
+      allow list: if isVerifiedUser() && existing().ownerId == request.auth.uid;
+      allow create: if isVerifiedUser() &&
+        isValidId(itemId) &&
+        isValidInventoryItem(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(itemId) &&
+        isValidInventoryItem(incoming()) &&
+        existing().ownerId == request.auth.uid &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'cat',
+          'categoryLabel',
+          'specLabel',
+          'cornerTag',
+          'title',
+          'priceLabel',
+          'image',
+          'stock',
+          'minSuggested',
+          'unit',
+          'statusType',
+          'urgentButtonLabel',
+          'urgentButtonIcon',
+          'updatedAt'
+        ]);
+      allow delete: if isVerifiedUser() && isValidId(itemId) && existing().ownerId == request.auth.uid;
+    }
+
+    match /movements/{movementId} {
+      allow get: if isVerifiedUser() && isValidId(movementId) && existing().ownerId == request.auth.uid;
+      allow list: if isVerifiedUser() && existing().ownerId == request.auth.uid;
+      allow create: if isVerifiedUser() &&
+        isValidId(movementId) &&
+        isValidCashMovement(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(movementId) &&
+        isValidCashMovement(incoming()) &&
+        existing().ownerId == request.auth.uid &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title',
+          'subtitle',
+          'amountFormatted',
+          'entity',
+          'paymentMethod',
+          'paymentLabel',
+          'updatedAt'
+        ]);
+      allow delete: if isVerifiedUser() && isValidId(movementId) && existing().ownerId == request.auth.uid;
+    }
+
+    match /catalogMeta/{modelId} {
+      allow get: if isVerifiedUser() && isValidId(modelId) && existing().ownerId == request.auth.uid;
+      allow list: if isVerifiedUser() && existing().ownerId == request.auth.uid;
+      allow create: if isVerifiedUser() &&
+        isValidId(modelId) &&
+        isValidCatalogMeta(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(modelId) &&
+        isValidCatalogMeta(incoming()) &&
+        existing().ownerId == request.auth.uid &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'glbFileName',
+          'pngPreviewUrl',
+          'shortTitle',
+          'fullName',
+          'specsText',
+          'dimensions',
+          'costInsumos',
+          'pvp',
+          'updatedAt'
+        ]);
+      allow delete: if isVerifiedUser() && isValidId(modelId) && existing().ownerId == request.auth.uid;
+    }
+  }
+}

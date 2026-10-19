@@ -1,0 +1,503 @@
+{
+  "entities": {
+    "CutItem": {
+      "title": "CutItem",
+      "description": "Un corte individual asignado en el optimizador de placas 2D.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID del propietario del taller."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Nombre de la pieza."
+        },
+        "lengthMm": {
+          "type": "number",
+          "description": "Largo de la pieza en milímetros."
+        },
+        "widthMm": {
+          "type": "number",
+          "description": "Ancho de la pieza en milímetros."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Cantidad de unidades de este corte."
+        },
+        "edgeSpec": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Especificación de tapacantos."
+        },
+        "respectGrain": {
+          "type": "boolean",
+          "description": "Indica si respeta sentido de veta."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de creación en servidor."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de última actualización en servidor."
+        }
+      },
+      "required": [
+        "ownerId",
+        "name",
+        "lengthMm",
+        "widthMm",
+        "quantity",
+        "edgeSpec",
+        "respectGrain",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "OrderItem": {
+      "title": "OrderItem",
+      "description": "Pedido de mueble en la cola de producción y despacho del taller.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID del propietario del taller."
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Código del pedido (ej. #PED-1084)."
+        },
+        "badgeText": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Texto de etiqueta operativa."
+        },
+        "badgeImminent": {
+          "type": "boolean",
+          "description": "Indica si la entrega es inminente."
+        },
+        "badgeDelivered": {
+          "type": "boolean",
+          "description": "Indica si fue entregado y saldado."
+        },
+        "client": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Nombre del cliente o estudio de arquitectura."
+        },
+        "city": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Localidad de entrega."
+        },
+        "distance": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Distancia al taller."
+        },
+        "distanceHighlight": {
+          "type": "boolean",
+          "description": "Destacar distancia cercana."
+        },
+        "image": {
+          "type": "string",
+          "maxLength": 1200,
+          "description": "URL de imagen miniatura."
+        },
+        "furnitureIcon": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Icono Material Symbols."
+        },
+        "furnitureTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Descripción del mueble encargado."
+        },
+        "deliveryLabel": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Fecha u horario de entrega."
+        },
+        "deliveryUrgent": {
+          "type": "boolean",
+          "description": "Indica urgencia de entrega."
+        },
+        "specNote": {
+          "type": "string",
+          "maxLength": 160,
+          "description": "Especificación de madera o herraje."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["en-proceso", "terminado", "embalado", "entregado"],
+          "maxLength": 30,
+          "description": "Fase de producción actual."
+        },
+        "balanceAmount": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Saldo pendiente formateado."
+        },
+        "totalAmount": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Total pactado formateado."
+        },
+        "paidBadge": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Etiqueta de porcentaje señado."
+        },
+        "paidFullAmount": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Monto total saldado."
+        },
+        "whatsappPhone": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Teléfono para contacto WhatsApp."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de creación en servidor."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de última actualización en servidor."
+        }
+      },
+      "required": [
+        "ownerId",
+        "code",
+        "badgeText",
+        "badgeImminent",
+        "badgeDelivered",
+        "client",
+        "city",
+        "distance",
+        "distanceHighlight",
+        "image",
+        "furnitureIcon",
+        "furnitureTitle",
+        "deliveryLabel",
+        "deliveryUrgent",
+        "specNote",
+        "status",
+        "balanceAmount",
+        "totalAmount",
+        "paidBadge",
+        "paidFullAmount",
+        "whatsappPhone",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Insumo, placa, canto o herraje en el inventario del taller.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID del propietario del taller."
+        },
+        "cat": {
+          "type": "string",
+          "enum": ["placas", "cantos", "herrajes", "insumos"],
+          "maxLength": 30,
+          "description": "Categoría técnica."
+        },
+        "categoryLabel": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Etiqueta visible de categoría."
+        },
+        "specLabel": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Especificación de formato/marca."
+        },
+        "cornerTag": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "Etiqueta de espesor o medida."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140,
+          "description": "Nombre del insumo o placa."
+        },
+        "priceLabel": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Precio de referencia por unidad."
+        },
+        "image": {
+          "type": "string",
+          "maxLength": 1200,
+          "description": "URL de imagen del material."
+        },
+        "stock": {
+          "type": "number",
+          "description": "Cantidad actual en stock."
+        },
+        "minSuggested": {
+          "type": "number",
+          "description": "Umbral mínimo sugerido."
+        },
+        "unit": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Unidad de medida (un, m, pares)."
+        },
+        "statusType": {
+          "type": "string",
+          "enum": ["bajo", "critico", "normal", "optimo"],
+          "maxLength": 30,
+          "description": "Estado del stock."
+        },
+        "urgentButtonLabel": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Texto del botón de reposición rápida."
+        },
+        "urgentButtonIcon": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Icono del botón de reposición rápida."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de creación en servidor."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de última actualización en servidor."
+        }
+      },
+      "required": [
+        "ownerId",
+        "cat",
+        "categoryLabel",
+        "specLabel",
+        "cornerTag",
+        "title",
+        "priceLabel",
+        "image",
+        "stock",
+        "minSuggested",
+        "unit",
+        "statusType",
+        "urgentButtonLabel",
+        "urgentButtonIcon",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CashMovement": {
+      "title": "CashMovement",
+      "description": "Movimiento de ingreso o egreso en la caja financiera del taller.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID del propietario del taller."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["ingreso", "egreso"],
+          "maxLength": 20,
+          "description": "Tipo de movimiento."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Concepto principal del movimiento."
+        },
+        "subtitle": {
+          "type": "string",
+          "maxLength": 160,
+          "description": "Subtítulo o detalle adicional."
+        },
+        "amountFormatted": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Monto formateado en ARS."
+        },
+        "entity": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Cliente, arquitecto o proveedor."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["efectivo", "mp", "factura"],
+          "maxLength": 30,
+          "description": "Medio de pago."
+        },
+        "paymentLabel": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Etiqueta del medio de pago."
+        },
+        "timestamp": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Etiqueta horaria."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de creación en servidor."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de última actualización en servidor."
+        }
+      },
+      "required": [
+        "ownerId",
+        "type",
+        "title",
+        "subtitle",
+        "amountFormatted",
+        "entity",
+        "paymentMethod",
+        "paymentLabel",
+        "timestamp",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CatalogMeta": {
+      "title": "CatalogMeta",
+      "description": "Metadatos e imagen .PNG personalizada de un modelo del catálogo 3D.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID del propietario del taller."
+        },
+        "modelId": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Identificador del modelo del catálogo."
+        },
+        "shortTitle": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Título corto del modelo."
+        },
+        "fullName": {
+          "type": "string",
+          "maxLength": 140,
+          "description": "Nombre completo del modelo."
+        },
+        "glbFileName": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Nombre del archivo .glb asociado."
+        },
+        "specsText": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Resumen de dimensiones y características."
+        },
+        "dimensions": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Cotas generales."
+        },
+        "costInsumos": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Costo de insumos."
+        },
+        "pvp": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Precio de venta sugerido."
+        },
+        "pngPreviewUrl": {
+          "type": "string",
+          "maxLength": 800000,
+          "description": "Data URL de la imagen .PNG personalizada del modelo."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de creación en servidor."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de última actualización en servidor."
+        }
+      },
+      "required": [
+        "ownerId",
+        "modelId",
+        "shortTitle",
+        "fullName",
+        "glbFileName",
+        "specsText",
+        "dimensions",
+        "costInsumos",
+        "pvp",
+        "pngPreviewUrl",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/cuts/{cutId}": {
+      "schema": { "$ref": "#/entities/CutItem" },
+      "description": "Cortes de placa asignados por el usuario del taller."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/OrderItem" },
+      "description": "Pedidos de clientes gestionados en el taller."
+    },
+    "/inventory/{itemId}": {
+      "schema": { "$ref": "#/entities/InventoryItem" },
+      "description": "Ítems de inventario (placas, cantos, herrajes e insumos) del taller."
+    },
+    "/movements/{movementId}": {
+      "schema": { "$ref": "#/entities/CashMovement" },
+      "description": "Movimientos financieros de caja del taller."
+    },
+    "/catalogMeta/{modelId}": {
+      "schema": { "$ref": "#/entities/CatalogMeta" },
+      "description": "Metadatos e imágenes .PNG personalizadas del catálogo de modelos 3D."
+    }
+  }
+}

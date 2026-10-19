@@ -1,131 +1,35 @@
 import React, { useState } from 'react';
+import { CloudOrderItem, CloudOrderStatus, useWorkshopCloud } from '../context/WorkshopCloudContext';
 
-type OrderStatus = 'en-proceso' | 'terminado' | 'embalado' | 'entregado';
+type OrderStatus = CloudOrderStatus;
+type OrderItem = CloudOrderItem;
 
-interface OrderItem {
-  id: string;
-  code: string;
-  badgeText: string;
-  badgeImminent?: boolean;
-  badgeDelivered?: boolean;
-  client: string;
-  city: string;
-  distance: string;
-  distanceHighlight?: boolean;
-  image: string;
-  furnitureIcon: string;
-  furnitureTitle: string;
-  deliveryLabel: string;
-  deliveryUrgent?: boolean;
-  specNote: string;
-  status: OrderStatus;
-  balanceAmount?: string;
-  totalAmount?: string;
-  paidBadge?: string;
-  paidFullAmount?: string;
-  whatsappPhone: string;
-}
-
-const INITIAL_ORDERS: OrderItem[] = [
-  {
-    id: '1084',
-    code: '#PED-1084',
-    badgeText: 'Entrega Inminente',
-    badgeImminent: true,
-    client: 'Estudio Arq. Rossi',
-    city: 'Ramos Mejía',
-    distance: '3.8 km',
-    distanceHighlight: true,
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuBCjQmwmgkFl29OALAWWAgN0t9Ma0ke6bIn1UTCuHhx_qc38iba-gQnqNCf1JfBgfFyAhUFZejCJlIfkPa4Bki4nOH2Gxe6Zi8uqTpAUAQHAo4kZ0v3eG1SAKcMRqcksAEgQ3BZ_EzG1zAX1qEpTbYNaGHTjlypW76xYVdZZTkJpqzrMgxsgJo2r17Rn1rZzVmOcQQRM3o2_SZBLnDjRac7MitnHtTTqVfy4mAgtkAOwIQ2NHAxVhGxbg',
-    furnitureIcon: 'bed',
-    furnitureTitle: 'Mesa de Noche Nórdica x2 + Cómoda 4C',
-    deliveryLabel: 'Mañana 10:30 hs',
-    deliveryUrgent: true,
-    specNote: 'Paraiso natural + laca poliuretánica',
-    status: 'embalado',
-    balanceAmount: '$85.000',
-    totalAmount: '$180.000',
-    paidBadge: 'Pendiente 50%',
-    whatsappPhone: '5491112345678',
-  },
-  {
-    id: '1088',
-    code: '#PED-1088',
-    badgeText: 'En Corte & Lijado',
-    client: 'Lucas Benítez',
-    city: 'Castelar',
-    distance: '6.2 km',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuCK4ThREqV3F7_mAIcaqlTgigTXNv-QzHmYzLgq6qvThSYS0ed_FSCrJuu4tUVlJQD5UftZoabBxs9Cle97ccvMwu0nGcBvKghdJA9xlH1ItsEiKpRzLnunnVpJ1SgbtJT2m3a7vgBBnj6USBCMT7JhUh_N49Kqmo_0Omlt4CAjCwo6VQc3k0MlHiZh9yMzh8km8Nhp9ouwBDXlGukuBSzGOP2RY0bOmrULmWQf4hr4Mq_sQ-kc9e6ZSg',
-    furnitureIcon: 'table_restaurant',
-    furnitureTitle: 'Mesa Ratona Petiribí Maciza',
-    deliveryLabel: 'Entrega: 28 de Marzo',
-    specNote: 'Espesor 2 pulgadas',
-    status: 'en-proceso',
-    balanceAmount: '$70.000',
-    totalAmount: '$140.000',
-    paidBadge: '50% Señado',
-    whatsappPhone: '5491122223333',
-  },
-  {
-    id: '1091',
-    code: '#PED-1091',
-    badgeText: 'Estructura Metálica',
-    client: 'Arq. Mariana Peña',
-    city: 'Villa Luzuriaga',
-    distance: 'Local (1.2 km)',
-    distanceHighlight: true,
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuD9SkKcB8u7I1gjAwyszvyOvDuMA0d9q5_mEOmlt5xPfUhjRGSM8fLPoggtnQ8omQDTNSaVI2kwPa4L8QOju4D3F3UL2CIUjLNYiW75XobWTsE9tALMLfYngyCvRplPm7ESgqu5eDD7TantbcxxXjDInUAvQKVTHC_pWAytnsFy5t2GFzzSLsUzjRcfQLD11kD5qCXYCjTBDyma_fyazgylwrRKnBQfgpPGJM99zcxjvOmq8MCnGIljhQ',
-    furnitureIcon: 'desk',
-    furnitureTitle: 'Escritorio Nórdico Industrial c/ Cajonera',
-    deliveryLabel: 'Entrega: 05 de Abril',
-    specNote: 'Melamina 18mm Guatambú',
-    status: 'en-proceso',
-    balanceAmount: '$115.000',
-    totalAmount: '$230.000',
-    paidBadge: '50% Anticipo',
-    whatsappPhone: '5491144445555',
-  },
-  {
-    id: '1079',
-    code: '#PED-1079',
-    badgeText: 'Entregado & Saldado',
-    badgeDelivered: true,
-    client: 'Silvia Gómez',
-    city: 'Haedo',
-    distance: '4.1 km',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuCBhNjqMj-MmvO8GzhQqs6r1RtR_edrFGTIgd2p67NBtrKCPWTDZpjPJsHUmcoy9HVblvNRJffpZ99JeJF7ablD_gKT9JnQgPzUIzxE_bCxOt1-k8kT0bPwT8fzIYgEjky1RHfYROXt0AZS_VUnHYTJmQvWfxZ-g0ln4MFYe_ENeOzOCTCwniYH1aPvrq7dUVj8J2k4RveJjOkjE3nAy5iRSUgDeLV1mVRIZx5UOIEk_WhslsvO_ODDKQ',
-    furnitureIcon: 'shelves',
-    furnitureTitle: 'Placard 2 Puertas Corredizas',
-    deliveryLabel: 'Entregado el 24 de Marzo',
-    specNote: 'Rieles Ducasse aluminio',
-    status: 'entregado',
-    paidFullAmount: '$320.000 ARS',
-    whatsappPhone: '5491155556666',
-  },
-];
+const DEFAULT_THUMBNAIL =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuBCjQmwmgkFl29OALAWWAgN0t9Ma0ke6bIn1UTCuHhx_qc38iba-gQnqNCf1JfBgfFyAhUFZejCJlIfkPa4Bki4nOH2Gxe6Zi8uqTpAUAQHAo4kZ0v3eG1SAKcMRqcksAEgQ3BZ_EzG1zAX1qEpTbYNaGHTjlypW76xYVdZZTkJpqzrMgxsgJo2r17Rn1rZzVmOcQQRM3o2_SZBLnDjRac7MitnHtTTqVfy4mAgtkAOwIQ2NHAxVhGxbg';
 
 export const PedidosScreen: React.FC = () => {
-  const [orders, setOrders] = useState<OrderItem[]>(INITIAL_ORDERS);
+  const { orders, createOrder, updateOrder, deleteOrder, updateOrderStatus } =
+    useWorkshopCloud();
   const [activeFilter, setActiveFilter] = useState<'todos' | OrderStatus>('todos');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [toast, setToast] = useState<{ msg: string; icon: string } | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<OrderItem | null>(null);
+  const [editingOrder, setEditingOrder] = useState<OrderItem | null>(null);
 
   // New Order Form State
   const [newClient, setNewClient] = useState('');
   const [newCity, setNewCity] = useState('Ramos Mejía');
+  const [newDistance, setNewDistance] = useState('4.5 km');
   const [newPhone, setNewPhone] = useState('');
   const [newFurniture, setNewFurniture] = useState('');
+  const [newSpecNote, setNewSpecNote] = useState('Melamina 18mm + Tapacantos PVC');
   const [newDateIn, setNewDateIn] = useState('2025-03-24');
   const [newDateOut, setNewDateOut] = useState('2025-04-05');
   const [newTotal, setNewTotal] = useState('');
   const [newDeposit, setNewDeposit] = useState('');
   const [newBalance, setNewBalance] = useState('');
+  const [newImminent, setNewImminent] = useState(false);
 
   const showToast = (msg: string, icon = 'check_circle') => {
     setToast({ msg, icon });
@@ -135,9 +39,7 @@ export const PedidosScreen: React.FC = () => {
   };
 
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
-    );
+    updateOrderStatus(orderId, newStatus);
     showToast(
       `Pedido #${orderId} actualizado a "${newStatus.replace('-', ' ').toUpperCase()}"`,
       'sync'
@@ -153,31 +55,64 @@ export const PedidosScreen: React.FC = () => {
     const totalVal = newTotal.trim() || '$190.000';
     const balanceVal = newBalance.trim() || '$95.000';
     const created: OrderItem = {
-      id: String(nextNum),
+      id: `${nextNum}_${Date.now().toString().slice(-4)}`,
       code: `#PED-${nextNum}`,
-      badgeText: 'Recién Ingresado',
-      client: newClient.trim(),
-      city: newCity,
-      distance: '4.5 km',
-      image: INITIAL_ORDERS[0].image,
+      badgeText: newImminent ? 'Entrega Inminente' : 'Recién Ingresado',
+      badgeImminent: newImminent,
+      badgeDelivered: false,
+      client: newClient.trim().slice(0, 120),
+      city: newCity.slice(0, 80),
+      distance: (newDistance.trim() || '4.5 km').slice(0, 40),
+      distanceHighlight: false,
+      image: DEFAULT_THUMBNAIL,
       furnitureIcon: 'chair',
-      furnitureTitle: newFurniture.trim(),
-      deliveryLabel: `Entrega: ${newDateOut}`,
-      specNote: 'Ingreso directo a cola de taller',
+      furnitureTitle: newFurniture.trim().slice(0, 160),
+      deliveryLabel: `Entrega: ${newDateOut}`.slice(0, 80),
+      deliveryUrgent: newImminent,
+      specNote: (newSpecNote.trim() || 'Ingreso directo a cola de taller').slice(0, 160),
       status: 'en-proceso',
-      balanceAmount: balanceVal.startsWith('$') ? balanceVal : `$${balanceVal}`,
-      totalAmount: totalVal.startsWith('$') ? totalVal : `$${totalVal}`,
-      paidBadge: '50% Señado',
-      whatsappPhone: newPhone.replace(/\D/g, '') || '5491112345678',
+      balanceAmount: (balanceVal.startsWith('$') ? balanceVal : `$${balanceVal}`).slice(0, 40),
+      totalAmount: (totalVal.startsWith('$') ? totalVal : `$${totalVal}`).slice(0, 40),
+      paidBadge: newDeposit.trim() ? `Seña ${newDeposit.trim()}` : '50% Señado',
+      paidFullAmount: '',
+      whatsappPhone: (newPhone.replace(/\D/g, '') || '5491112345678').slice(0, 40),
     };
-    setOrders([created, ...orders]);
+    createOrder(created);
     setNewClient('');
     setNewFurniture('');
     setNewTotal('');
     setNewDeposit('');
     setNewBalance('');
+    setNewImminent(false);
     setIsFormOpen(false);
     showToast(`Pedido ${created.code} ingresado a cola de taller`, 'assignment_turned_in');
+  };
+
+  const handleSaveEditOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOrder) return;
+    if (!editingOrder.client.trim() || !editingOrder.furnitureTitle.trim()) {
+      showToast('El nombre del cliente y mueble son obligatorios', 'info');
+      return;
+    }
+
+    const updated: OrderItem = {
+      ...editingOrder,
+      client: editingOrder.client.trim().slice(0, 120),
+      furnitureTitle: editingOrder.furnitureTitle.trim().slice(0, 160),
+      badgeDelivered: editingOrder.status === 'entregado',
+    };
+    updateOrder(updated);
+    setEditingOrder(null);
+    showToast(`Pedido ${updated.code} actualizado correctamente`, 'edit_note');
+  };
+
+  const handleDeleteOrder = (order: OrderItem) => {
+    deleteOrder(order.id);
+    if (editingOrder?.id === order.id) {
+      setEditingOrder(null);
+    }
+    showToast(`Pedido ${order.code} (${order.client}) eliminado`, 'delete');
   };
 
   const handleExportClosing = () => {
@@ -191,6 +126,9 @@ export const PedidosScreen: React.FC = () => {
   const filteredOrders = orders.filter(
     (o) => activeFilter === 'todos' || o.status === activeFilter
   );
+
+  const countByStatus = (st: OrderStatus) => orders.filter((o) => o.status === st).length;
+  const imminentCount = orders.filter((o) => o.badgeImminent).length;
 
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto px-margin pb-6 gap-space-lg">
@@ -206,7 +144,8 @@ export const PedidosScreen: React.FC = () => {
             </span>
           </div>
           <span className="flex items-center gap-1 text-[11px] font-semibold text-tertiary bg-surface-container-high px-2.5 py-0.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-ping"></span> 1 Inminente
+            <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-ping"></span>{' '}
+            {imminentCount} Inminente{imminentCount === 1 ? '' : 's'}
           </span>
         </div>
 
@@ -238,7 +177,7 @@ export const PedidosScreen: React.FC = () => {
         </div>
       </section>
 
-      {/* Section 1: Registro Integral de Pedido (Expandable Card) */}
+      {/* Section 1: Registro Integral de Pedido (Create Order) */}
       <section className="bg-surface-container rounded-3xl p-space-md shadow-md flex flex-col transition-all">
         <div
           onClick={() => setIsFormOpen(!isFormOpen)}
@@ -250,10 +189,10 @@ export const PedidosScreen: React.FC = () => {
             </div>
             <div>
               <h2 className="font-title-sm text-title-sm text-on-surface">
-                Registro Integral de Pedido
+                + Nuevo Pedido / Encargo
               </h2>
               <p className="font-label-md text-label-md text-on-surface-variant">
-                Ingreso a cola de producción &amp; despacho
+                Crear orden en cola de producción &amp; despacho
               </p>
             </div>
           </div>
@@ -290,7 +229,7 @@ export const PedidosScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-space-sm">
+            <div className="grid grid-cols-3 gap-space-sm">
               <div className="flex flex-col gap-space-xs">
                 <label className="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
                   <span className="material-symbols-outlined text-[16px] text-primary">
@@ -299,42 +238,40 @@ export const PedidosScreen: React.FC = () => {
                   Localidad
                 </label>
                 <div className="bg-surface-container-high rounded-2xl px-space-sm py-2.5">
-                  <select
+                  <input
                     value={newCity}
                     onChange={(e) => setNewCity(e.target.value)}
                     className="w-full bg-transparent font-body-md text-body-md text-on-surface outline-none"
-                  >
-                    <option className="bg-surface-container-high text-on-surface" value="Ramos Mejía">
-                      Ramos Mejía
-                    </option>
-                    <option
-                      className="bg-surface-container-high text-on-surface"
-                      value="Villa Luzuriaga"
-                    >
-                      Villa Luzuriaga
-                    </option>
-                    <option className="bg-surface-container-high text-on-surface" value="Morón">
-                      Morón
-                    </option>
-                    <option className="bg-surface-container-high text-on-surface" value="San Justo">
-                      San Justo
-                    </option>
-                    <option className="bg-surface-container-high text-on-surface" value="Castelar">
-                      Castelar
-                    </option>
-                    <option className="bg-surface-container-high text-on-surface" value="Haedo">
-                      Haedo
-                    </option>
-                  </select>
+                    placeholder="Ramos Mejía"
+                    type="text"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-space-xs">
+                <label className="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[16px] text-primary">
+                    route
+                  </span>{' '}
+                  Distancia
+                </label>
+                <div className="bg-surface-container-high rounded-2xl px-space-sm py-2.5">
+                  <input
+                    value={newDistance}
+                    onChange={(e) => setNewDistance(e.target.value)}
+                    className="w-full bg-transparent font-body-md text-body-md text-on-surface outline-none"
+                    placeholder="4.5 km"
+                    type="text"
+                  />
                 </div>
               </div>
 
               <div className="flex flex-col gap-space-xs">
                 <label className="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
                   <span className="material-symbols-outlined text-[16px] text-primary">call</span>{' '}
-                  Teléfono Celular
+                  WhatsApp
                 </label>
-                <div className="bg-surface-container-high rounded-2xl px-space-md py-2.5">
+                <div className="bg-surface-container-high rounded-2xl px-space-sm py-2.5">
                   <input
                     value={newPhone}
                     onChange={(e) => setNewPhone(e.target.value)}
@@ -346,26 +283,43 @@ export const PedidosScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex flex-col gap-space-xs">
-              <label className="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
-                <span className="material-symbols-outlined text-[16px] text-primary">chair</span>{' '}
-                Mueble del Catálogo / Modelo
-              </label>
-              <div className="bg-surface-container-high rounded-2xl px-space-md py-3 flex items-center justify-between">
-                <input
-                  value={newFurniture}
-                  onChange={(e) => setNewFurniture(e.target.value)}
-                  className="w-full bg-transparent font-body-md text-body-md text-on-surface placeholder:text-outline outline-none"
-                  placeholder="Ej: Mesa Ratona Petiribí 120x60"
-                  type="text"
-                />
-                <span className="material-symbols-outlined text-outline text-[18px]">
-                  straighten
-                </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
+              <div className="flex flex-col gap-space-xs">
+                <label className="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[16px] text-primary">chair</span>{' '}
+                  Mueble del Catálogo / Modelo
+                </label>
+                <div className="bg-surface-container-high rounded-2xl px-space-md py-3 flex items-center justify-between">
+                  <input
+                    value={newFurniture}
+                    onChange={(e) => setNewFurniture(e.target.value)}
+                    className="w-full bg-transparent font-body-md text-body-md text-on-surface placeholder:text-outline outline-none"
+                    placeholder="Ej: Mesa Ratona Petiribí 120x60"
+                    type="text"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-space-xs">
+                <label className="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[16px] text-secondary">
+                    carpenter
+                  </span>{' '}
+                  Especificación Técnica
+                </label>
+                <div className="bg-surface-container-high rounded-2xl px-space-md py-3 flex items-center justify-between">
+                  <input
+                    value={newSpecNote}
+                    onChange={(e) => setNewSpecNote(e.target.value)}
+                    className="w-full bg-transparent font-body-md text-body-md text-on-surface placeholder:text-outline outline-none"
+                    placeholder="Ej: Melamina 18mm Carvalho + Rieles Ducasse"
+                    type="text"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Fechas Críticas para el Algoritmo */}
+            {/* Fechas Críticas */}
             <div className="grid grid-cols-2 gap-space-sm bg-surface-container-lowest/60 p-space-sm rounded-2xl">
               <div className="flex flex-col gap-space-xs">
                 <span className="font-label-md text-[11px] text-on-surface-variant flex items-center gap-1">
@@ -384,7 +338,7 @@ export const PedidosScreen: React.FC = () => {
               <div className="flex flex-col gap-space-xs">
                 <span className="font-label-md text-[11px] text-tertiary flex items-center gap-1">
                   <span className="material-symbols-outlined text-[14px]">local_shipping</span>{' '}
-                  Entrega Algoritmo
+                  Fecha de Entrega
                 </span>
                 <input
                   value={newDateOut}
@@ -405,7 +359,7 @@ export const PedidosScreen: React.FC = () => {
                   value={newTotal}
                   onChange={(e) => setNewTotal(e.target.value)}
                   className="bg-transparent font-telemetry-num text-[16px] text-on-surface outline-none mt-1"
-                  placeholder="$0"
+                  placeholder="$190.000"
                   type="text"
                 />
               </div>
@@ -417,7 +371,7 @@ export const PedidosScreen: React.FC = () => {
                   value={newDeposit}
                   onChange={(e) => setNewDeposit(e.target.value)}
                   className="bg-transparent font-telemetry-num text-[16px] text-secondary outline-none mt-1"
-                  placeholder="$0"
+                  placeholder="$95.000"
                   type="text"
                 />
               </div>
@@ -427,11 +381,21 @@ export const PedidosScreen: React.FC = () => {
                   value={newBalance}
                   onChange={(e) => setNewBalance(e.target.value)}
                   className="bg-transparent font-telemetry-num text-[16px] text-tertiary outline-none mt-1"
-                  placeholder="$0"
+                  placeholder="$95.000"
                   type="text"
                 />
               </div>
             </div>
+
+            <label className="flex items-center gap-2 text-label-md text-on-surface cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={newImminent}
+                onChange={(e) => setNewImminent(e.target.checked)}
+                className="w-4 h-4 accent-primary rounded"
+              />
+              <span>Marcar como Entrega Inminente / Prioritaria</span>
+            </label>
 
             <button
               type="button"
@@ -449,19 +413,21 @@ export const PedidosScreen: React.FC = () => {
       <section className="flex flex-col gap-space-xs">
         <div className="flex items-center justify-between">
           <span className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">
-            Cola de Pedidos
+            Cola de Pedidos (CRUD Activo)
           </span>
-          <span className="font-label-md text-label-md text-secondary">12 Activas</span>
+          <span className="font-label-md text-label-md text-secondary">
+            {orders.length} Registrados
+          </span>
         </div>
 
         <div className="flex items-center gap-space-xs overflow-x-auto no-scrollbar scroll-smooth py-1 -mx-1 px-1">
           {(
             [
-              { id: 'todos', label: 'Todos (12)' },
-              { id: 'en-proceso', label: 'En Proceso (5)' },
-              { id: 'terminado', label: 'Terminado (3)' },
-              { id: 'embalado', label: 'Embalado (2)' },
-              { id: 'entregado', label: 'Entregado (2)' },
+              { id: 'todos', label: `Todos (${orders.length})` },
+              { id: 'en-proceso', label: `En Proceso (${countByStatus('en-proceso')})` },
+              { id: 'terminado', label: `Terminado (${countByStatus('terminado')})` },
+              { id: 'embalado', label: `Embalado (${countByStatus('embalado')})` },
+              { id: 'entregado', label: `Entregado (${countByStatus('entregado')})` },
             ] as { id: 'todos' | OrderStatus; label: string }[]
           ).map((pill) => {
             const isSelected = activeFilter === pill.id;
@@ -483,216 +449,275 @@ export const PedidosScreen: React.FC = () => {
         </div>
       </section>
 
-      {/* Section 3: Real Orders Cards List */}
+      {/* Section 3: Orders Cards List with Edit & Delete */}
       <section className="flex flex-col gap-space-md">
-        {filteredOrders.map((order) => (
-          <article
-            key={order.id}
-            className={`bg-surface-container-low rounded-3xl p-space-md shadow-md flex flex-col gap-space-md relative overflow-hidden ${
-              order.status === 'entregado' ? 'opacity-95' : ''
-            }`}
-          >
-            {order.badgeImminent && (
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-tertiary via-primary to-transparent"></div>
-            )}
+        {filteredOrders.length === 0 ? (
+          <div className="rounded-3xl bg-surface-container-low p-6 text-center flex flex-col items-center gap-2">
+            <span className="material-symbols-outlined text-[32px] text-outline">
+              inbox
+            </span>
+            <p className="font-body-md text-on-surface-variant">
+              No hay pedidos en este estado. Puedes crear un nuevo pedido arriba.
+            </p>
+          </div>
+        ) : (
+          filteredOrders.map((order) => (
+            <article
+              key={order.id}
+              className={`bg-surface-container-low rounded-3xl p-space-md shadow-md flex flex-col gap-space-md relative overflow-hidden ${
+                order.status === 'entregado' ? 'opacity-95' : ''
+              }`}
+            >
+              {order.badgeImminent && (
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-tertiary via-primary to-transparent"></div>
+              )}
 
-            {/* Header row */}
-            <div className={`flex items-start justify-between gap-space-sm ${order.badgeImminent ? 'pt-1' : ''}`}>
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-space-xs">
-                  <span className="font-telemetry-num text-telemetry-num text-on-surface font-bold">
-                    {order.code}
-                  </span>
-                  {order.badgeImminent ? (
-                    <span className="bg-tertiary-container/30 text-tertiary font-label-md text-[11px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
-                      {order.badgeText}
+              {/* Header row with Edit & Delete controls */}
+              <div
+                className={`flex items-start justify-between gap-space-sm ${
+                  order.badgeImminent ? 'pt-1' : ''
+                }`}
+              >
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-space-xs flex-wrap">
+                    <span className="font-telemetry-num text-telemetry-num text-on-surface font-bold">
+                      {order.code}
                     </span>
-                  ) : order.badgeDelivered ? (
-                    <span className="bg-surface-container-high text-on-surface-variant font-label-md text-[11px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
-                      <span className="material-symbols-outlined text-primary text-[14px]">
-                        check_circle
+                    {order.badgeImminent ? (
+                      <span className="bg-tertiary-container/30 text-tertiary font-label-md text-[11px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+                        {order.badgeText}
                       </span>
-                      {order.badgeText}
-                    </span>
-                  ) : (
-                    <span className="bg-surface-container-high text-secondary font-label-md text-[11px] px-2 py-0.5 rounded-full font-medium">
-                      {order.badgeText}
-                    </span>
-                  )}
-                </div>
-
-                <span className="font-title-sm text-title-sm text-on-surface font-semibold truncate mt-0.5">
-                  {order.client}
-                </span>
-
-                <div className="flex items-center gap-1 text-on-surface-variant text-[12px] mt-0.5">
-                  <span className="material-symbols-outlined text-[14px] text-primary">
-                    location_on
-                  </span>
-                  <span>{order.city}</span>
-                  <span className="text-outline">•</span>
-                  <span
-                    className={
-                      order.distanceHighlight
-                        ? 'text-secondary font-medium'
-                        : 'text-on-surface-variant'
-                    }
-                  >
-                    {order.distance}
-                  </span>
-                </div>
-              </div>
-
-              {/* Visual item thumbnail */}
-              <div className="w-14 h-14 rounded-2xl overflow-hidden bg-surface-container-highest shrink-0 shadow-inner">
-                <img
-                  className="w-full h-full object-cover"
-                  alt={order.furnitureTitle}
-                  referrerPolicy="no-referrer"
-                  src={order.image}
-                />
-              </div>
-            </div>
-
-            {/* Furniture Specs Details */}
-            <div className="bg-surface-container/70 rounded-2xl p-space-sm flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 text-on-surface">
-                <span className="material-symbols-outlined text-[17px] text-secondary">
-                  {order.furnitureIcon}
-                </span>
-                <span className="font-body-md text-body-md font-medium">
-                  {order.furnitureTitle}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[12px] text-on-surface-variant pt-1 gap-2">
-                {order.deliveryUrgent ? (
-                  <span className="flex items-center gap-1 text-tertiary font-medium">
-                    <span className="material-symbols-outlined text-[15px]">alarm</span>
-                    {order.deliveryLabel}
-                  </span>
-                ) : order.badgeDelivered ? (
-                  <span className="text-on-surface-variant">{order.deliveryLabel}</span>
-                ) : (
-                  <span className="flex items-center gap-1 text-on-surface">
-                    <span className="material-symbols-outlined text-[15px] text-secondary">
-                      event
-                    </span>
-                    {order.deliveryLabel}
-                  </span>
-                )}
-                <span className="text-outline text-right">{order.specNote}</span>
-              </div>
-            </div>
-
-            {/* Interactive Status Selector Pillbox */}
-            <div className="flex flex-col gap-1.5">
-              <span className="font-label-md text-[11px] text-on-surface-variant uppercase tracking-wide">
-                Fase de Producción
-              </span>
-              <div className="grid grid-cols-4 gap-1 p-1 bg-surface-container-lowest/80 rounded-full">
-                {(
-                  [
-                    { id: 'en-proceso', label: 'En proc.' },
-                    { id: 'terminado', label: 'Terminado' },
-                    { id: 'embalado', label: 'Embalado' },
-                    { id: 'entregado', label: 'Entregado' },
-                  ] as { id: OrderStatus; label: string }[]
-                ).map((st) => {
-                  const isCurrent = order.status === st.id;
-                  return (
-                    <button
-                      key={st.id}
-                      type="button"
-                      onClick={() => handleStatusChange(order.id, st.id)}
-                      className={`py-1.5 rounded-full text-[11px] font-label-md text-center transition-all ${
-                        isCurrent
-                          ? 'bg-primary-container text-on-primary-container font-semibold shadow-sm'
-                          : 'text-on-surface-variant hover:text-on-surface'
-                      }`}
-                    >
-                      {st.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Financial Balance Progress & Quick Actions */}
-            {order.paidFullAmount ? (
-              <div className="flex items-center justify-between bg-surface-container-high/60 px-3 py-2.5 rounded-2xl text-[12px]">
-                <div className="flex items-center gap-1.5 text-on-surface">
-                  <span className="material-symbols-outlined text-primary text-[16px]">
-                    verified
-                  </span>
-                  <span>
-                    Cobrado: <strong>{order.paidFullAmount}</strong>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReceiptOrder(order);
-                    showToast(`Generando comprobante digital ${order.code}...`, 'receipt_long');
-                  }}
-                  className="text-secondary font-medium hover:underline flex items-center gap-0.5"
-                >
-                  <span>Ver Recibo</span>
-                  <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-space-sm pt-space-xs">
-                <div className="flex items-center justify-between text-[12px]">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-on-surface-variant">Saldo:</span>
-                    <span className="font-telemetry-num text-[14px] text-tertiary font-bold">
-                      {order.balanceAmount}
-                    </span>
-                    <span className="text-outline text-[11px]">/ {order.totalAmount}</span>
+                    ) : order.badgeDelivered ? (
+                      <span className="bg-surface-container-high text-on-surface-variant font-label-md text-[11px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                        <span className="material-symbols-outlined text-primary text-[14px]">
+                          check_circle
+                        </span>
+                        {order.badgeText}
+                      </span>
+                    ) : (
+                      <span className="bg-surface-container-high text-secondary font-label-md text-[11px] px-2 py-0.5 rounded-full font-medium">
+                        {order.badgeText}
+                      </span>
+                    )}
                   </div>
-                  <span className="bg-surface-container-high px-2 py-0.5 rounded-full text-[11px] font-medium text-secondary">
-                    {order.paidBadge}
+
+                  <span className="font-title-sm text-title-sm text-on-surface font-semibold truncate mt-0.5">
+                    {order.client}
                   </span>
-                </div>
 
-                <div className="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-secondary-container rounded-full"
-                    style={{ width: '50%' }}
-                  ></div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-space-xs pt-1">
-                  <a
-                    href={`https://wa.me/${order.whatsappPhone}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="h-10 rounded-full bg-surface-container-high flex items-center justify-center gap-1.5 text-on-surface hover:text-secondary active:scale-95 transition-all text-[13px] font-medium"
-                  >
-                    <span className="material-symbols-outlined text-[17px] text-secondary">
-                      chat
+                  <div className="flex items-center gap-1 text-on-surface-variant text-[12px] mt-0.5">
+                    <span className="material-symbols-outlined text-[14px] text-primary">
+                      location_on
                     </span>
-                    <span>WhatsApp</span>
-                  </a>
+                    <span>{order.city}</span>
+                    <span className="text-outline">•</span>
+                    <span
+                      className={
+                        order.distanceHighlight
+                          ? 'text-secondary font-medium'
+                          : 'text-on-surface-variant'
+                      }
+                    >
+                      {order.distance}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right Column: CRUD Action Buttons + Thumbnail */}
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
-                    onClick={() => {
-                      setReceiptOrder(order);
-                      showToast(`Generando comprobante digital ${order.code}...`, 'receipt_long');
-                    }}
-                    className="h-10 rounded-full bg-surface-container-high flex items-center justify-center gap-1.5 text-on-surface hover:text-primary active:scale-95 transition-all text-[13px] font-medium"
+                    onClick={() => setEditingOrder({ ...order })}
+                    title="Editar Pedido"
+                    className="w-9 h-9 rounded-full bg-surface-container-high hover:bg-primary hover:text-on-primary text-on-surface-variant flex items-center justify-center transition-colors active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-[17px] text-primary">
-                      receipt
-                    </span>
-                    <span>Comprobante</span>
+                    <span className="material-symbols-outlined text-[18px]">edit</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteOrder(order)}
+                    title="Eliminar Pedido"
+                    className="w-9 h-9 rounded-full bg-surface-container-high hover:bg-error-container hover:text-on-error-container text-on-surface-variant flex items-center justify-center transition-colors active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
+                  <div className="w-12 h-12 rounded-2xl overflow-hidden bg-surface-container-highest shrink-0 shadow-inner ml-0.5">
+                    <img
+                      className="w-full h-full object-cover"
+                      alt={order.furnitureTitle}
+                      referrerPolicy="no-referrer"
+                      src={order.image}
+                    />
+                  </div>
                 </div>
               </div>
-            )}
-          </article>
-        ))}
+
+              {/* Furniture Specs Details */}
+              <div className="bg-surface-container/70 rounded-2xl p-space-sm flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-on-surface">
+                  <span className="material-symbols-outlined text-[17px] text-secondary">
+                    {order.furnitureIcon}
+                  </span>
+                  <span className="font-body-md text-body-md font-medium">
+                    {order.furnitureTitle}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[12px] text-on-surface-variant pt-1 gap-2">
+                  {order.deliveryUrgent ? (
+                    <span className="flex items-center gap-1 text-tertiary font-medium">
+                      <span className="material-symbols-outlined text-[15px]">alarm</span>
+                      {order.deliveryLabel}
+                    </span>
+                  ) : order.badgeDelivered ? (
+                    <span className="text-on-surface-variant">{order.deliveryLabel}</span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-on-surface">
+                      <span className="material-symbols-outlined text-[15px] text-secondary">
+                        event
+                      </span>
+                      {order.deliveryLabel}
+                    </span>
+                  )}
+                  <span className="text-outline text-right">{order.specNote}</span>
+                </div>
+              </div>
+
+              {/* Interactive Status Selector Pillbox */}
+              <div className="flex flex-col gap-1.5">
+                <span className="font-label-md text-[11px] text-on-surface-variant uppercase tracking-wide">
+                  Fase de Producción
+                </span>
+                <div className="grid grid-cols-4 gap-1 p-1 bg-surface-container-lowest/80 rounded-full">
+                  {(
+                    [
+                      { id: 'en-proceso', label: 'En proc.' },
+                      { id: 'terminado', label: 'Terminado' },
+                      { id: 'embalado', label: 'Embalado' },
+                      { id: 'entregado', label: 'Entregado' },
+                    ] as { id: OrderStatus; label: string }[]
+                  ).map((st) => {
+                    const isCurrent = order.status === st.id;
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => handleStatusChange(order.id, st.id)}
+                        className={`py-1.5 rounded-full text-[11px] font-label-md text-center transition-all ${
+                          isCurrent
+                            ? 'bg-primary-container text-on-primary-container font-semibold shadow-sm'
+                            : 'text-on-surface-variant hover:text-on-surface'
+                        }`}
+                      >
+                        {st.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Financial Balance Progress & Quick Actions */}
+              {order.paidFullAmount ? (
+                <div className="flex items-center justify-between bg-surface-container-high/60 px-3 py-2.5 rounded-2xl text-[12px]">
+                  <div className="flex items-center gap-1.5 text-on-surface">
+                    <span className="material-symbols-outlined text-primary text-[16px]">
+                      verified
+                    </span>
+                    <span>
+                      Cobrado: <strong>{order.paidFullAmount}</strong>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditingOrder({ ...order })}
+                      className="text-on-surface-variant hover:text-on-surface font-medium flex items-center gap-0.5"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">edit</span>
+                      <span>Editar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReceiptOrder(order);
+                        showToast(
+                          `Generando comprobante digital ${order.code}...`,
+                          'receipt_long'
+                        );
+                      }}
+                      className="text-secondary font-medium hover:underline flex items-center gap-0.5"
+                    >
+                      <span>Ver Recibo</span>
+                      <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-space-sm pt-space-xs">
+                  <div className="flex items-center justify-between text-[12px]">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-on-surface-variant">Saldo:</span>
+                      <span className="font-telemetry-num text-[14px] text-tertiary font-bold">
+                        {order.balanceAmount}
+                      </span>
+                      <span className="text-outline text-[11px]">/ {order.totalAmount}</span>
+                    </div>
+                    <span className="bg-surface-container-high px-2 py-0.5 rounded-full text-[11px] font-medium text-secondary">
+                      {order.paidBadge}
+                    </span>
+                  </div>
+
+                  <div className="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-secondary-container rounded-full"
+                      style={{ width: '50%' }}
+                    ></div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-space-xs pt-1">
+                    <a
+                      href={`https://wa.me/${order.whatsappPhone}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-10 rounded-full bg-surface-container-high flex items-center justify-center gap-1.5 text-on-surface hover:text-secondary active:scale-95 transition-all text-[12px] font-medium"
+                    >
+                      <span className="material-symbols-outlined text-[16px] text-secondary">
+                        chat
+                      </span>
+                      <span>WhatsApp</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setEditingOrder({ ...order })}
+                      className="h-10 rounded-full bg-surface-container-high flex items-center justify-center gap-1.5 text-on-surface hover:text-primary active:scale-95 transition-all text-[12px] font-medium"
+                    >
+                      <span className="material-symbols-outlined text-[16px] text-primary">
+                        edit_note
+                      </span>
+                      <span>Editar Datos</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReceiptOrder(order);
+                        showToast(
+                          `Generando comprobante digital ${order.code}...`,
+                          'receipt_long'
+                        );
+                      }}
+                      className="h-10 rounded-full bg-surface-container-high flex items-center justify-center gap-1.5 text-on-surface hover:text-primary active:scale-95 transition-all text-[12px] font-medium"
+                    >
+                      <span className="material-symbols-outlined text-[16px] text-primary">
+                        receipt
+                      </span>
+                      <span>Recibo</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </article>
+          ))
+        )}
       </section>
 
       {/* Section 4: Monthly Closing & Export Utility */}
@@ -716,7 +741,6 @@ export const PedidosScreen: React.FC = () => {
           </span>
         </div>
 
-        {/* Monthly Summary Bento Grid */}
         <div className="grid grid-cols-2 gap-space-sm">
           <div className="bg-surface-container-high/80 rounded-2xl p-space-sm flex flex-col">
             <span className="font-label-md text-[11px] text-on-surface-variant uppercase">
@@ -738,17 +762,16 @@ export const PedidosScreen: React.FC = () => {
             </span>
             <div className="flex items-baseline gap-1 mt-1">
               <span className="font-telemetry-num text-telemetry-num text-on-surface font-bold">
-                14
+                {countByStatus('entregado')}
               </span>
               <span className="font-telemetry-unit text-telemetry-unit text-outline">
                 UNIDADES
               </span>
             </div>
-            <span className="text-[11px] text-on-surface-variant mt-1">100% a tiempo</span>
+            <span className="text-[11px] text-on-surface-variant mt-1">Sincronizado</span>
           </div>
         </div>
 
-        {/* Export Action Button */}
         <button
           type="button"
           onClick={handleExportClosing}
@@ -771,6 +794,265 @@ export const PedidosScreen: React.FC = () => {
           )}
         </button>
       </section>
+
+      {/* Edit Order Modal (Full CRUD Update & Delete) */}
+      {editingOrder && (
+        <div
+          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setEditingOrder(null)}
+        >
+          <form
+            onSubmit={handleSaveEditOrder}
+            className="w-full max-w-md rounded-3xl bg-surface-container-high p-5 shadow-2xl border border-outline-variant/30 flex flex-col gap-3 my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">edit_note</span>
+                <span className="font-title-sm text-title-sm font-bold text-on-surface">
+                  Editar Pedido {editingOrder.code}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingOrder(null)}
+                className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2.5 max-h-[68vh] overflow-y-auto pr-1 no-scrollbar">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-label-md text-on-surface-variant">
+                    Código de Pedido
+                  </label>
+                  <input
+                    type="text"
+                    value={editingOrder.code}
+                    onChange={(e) =>
+                      setEditingOrder({ ...editingOrder, code: e.target.value })
+                    }
+                    className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-label-md text-on-surface-variant">
+                    Etiqueta Operativa
+                  </label>
+                  <input
+                    type="text"
+                    value={editingOrder.badgeText}
+                    onChange={(e) =>
+                      setEditingOrder({ ...editingOrder, badgeText: e.target.value })
+                    }
+                    className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-label-md text-on-surface-variant">
+                  Cliente / Estudio
+                </label>
+                <input
+                  type="text"
+                  value={editingOrder.client}
+                  onChange={(e) =>
+                    setEditingOrder({ ...editingOrder, client: e.target.value })
+                  }
+                  className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-label-md text-on-surface-variant">
+                    Localidad
+                  </label>
+                  <input
+                    type="text"
+                    value={editingOrder.city}
+                    onChange={(e) =>
+                      setEditingOrder({ ...editingOrder, city: e.target.value })
+                    }
+                    className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-label-md text-on-surface-variant">
+                    Distancia al Taller
+                  </label>
+                  <input
+                    type="text"
+                    value={editingOrder.distance}
+                    onChange={(e) =>
+                      setEditingOrder({ ...editingOrder, distance: e.target.value })
+                    }
+                    className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-label-md text-on-surface-variant">
+                  Mueble Encargado
+                </label>
+                <input
+                  type="text"
+                  value={editingOrder.furnitureTitle}
+                  onChange={(e) =>
+                    setEditingOrder({ ...editingOrder, furnitureTitle: e.target.value })
+                  }
+                  className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-label-md text-on-surface-variant">
+                    Fecha / Horario Entrega
+                  </label>
+                  <input
+                    type="text"
+                    value={editingOrder.deliveryLabel}
+                    onChange={(e) =>
+                      setEditingOrder({ ...editingOrder, deliveryLabel: e.target.value })
+                    }
+                    className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-label-md text-on-surface-variant">
+                    Especificación Material
+                  </label>
+                  <input
+                    type="text"
+                    value={editingOrder.specNote}
+                    onChange={(e) =>
+                      setEditingOrder({ ...editingOrder, specNote: e.target.value })
+                    }
+                    className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[11px] font-label-md text-on-surface-variant">
+                    Total Pactado
+                  </label>
+                  <input
+                    type="text"
+                    value={editingOrder.totalAmount || ''}
+                    onChange={(e) =>
+                      setEditingOrder({ ...editingOrder, totalAmount: e.target.value })
+                    }
+                    className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-label-md text-on-surface-variant">
+                    Saldo Pendiente
+                  </label>
+                  <input
+                    type="text"
+                    value={editingOrder.balanceAmount || ''}
+                    onChange={(e) =>
+                      setEditingOrder({ ...editingOrder, balanceAmount: e.target.value })
+                    }
+                    className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-label-md text-on-surface-variant">
+                    Estado Pago
+                  </label>
+                  <input
+                    type="text"
+                    value={editingOrder.paidBadge || ''}
+                    onChange={(e) =>
+                      setEditingOrder({ ...editingOrder, paidBadge: e.target.value })
+                    }
+                    className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-label-md text-on-surface-variant">
+                    Fase de Producción
+                  </label>
+                  <select
+                    value={editingOrder.status}
+                    onChange={(e) =>
+                      setEditingOrder({
+                        ...editingOrder,
+                        status: e.target.value as OrderStatus,
+                      })
+                    }
+                    className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                  >
+                    <option value="en-proceso">En Proceso</option>
+                    <option value="terminado">Terminado</option>
+                    <option value="embalado">Embalado</option>
+                    <option value="entregado">Entregado</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-label-md text-on-surface-variant">
+                    Teléfono WhatsApp
+                  </label>
+                  <input
+                    type="text"
+                    value={editingOrder.whatsappPhone}
+                    onChange={(e) =>
+                      setEditingOrder({ ...editingOrder, whatsappPhone: e.target.value })
+                    }
+                    className="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface text-body-md focus:outline-none mt-0.5"
+                  />
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 text-label-md text-on-surface cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={Boolean(editingOrder.badgeImminent)}
+                  onChange={(e) =>
+                    setEditingOrder({
+                      ...editingOrder,
+                      badgeImminent: e.target.checked,
+                      deliveryUrgent: e.target.checked,
+                    })
+                  }
+                  className="w-4 h-4 accent-primary rounded"
+                />
+                <span>Prioridad: Entrega Inminente</span>
+              </label>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => handleDeleteOrder(editingOrder)}
+                className="px-4 h-11 rounded-full bg-error-container text-on-error-container font-label-md font-semibold flex items-center justify-center gap-1 active:scale-95"
+              >
+                <span className="material-symbols-outlined text-[18px]">delete</span>
+                <span>Eliminar</span>
+              </button>
+              <button
+                type="submit"
+                className="flex-1 h-11 rounded-full bg-primary text-on-primary font-label-md font-semibold flex items-center justify-center gap-1.5 active:scale-95"
+              >
+                <span className="material-symbols-outlined text-[18px]">save</span>
+                <span>Guardar Cambios</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Receipt Preview Modal */}
       {receiptOrder && (

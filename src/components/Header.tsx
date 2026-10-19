@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useWorkshopCloud } from '../context/WorkshopCloudContext';
 import { ScreenId } from '../types';
 
 interface HeaderProps {
@@ -9,6 +10,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ activeScreen, onNavigate }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const { user, isCloudConnected, syncStatusText, signIn, logOut } = useWorkshopCloud();
 
   return (
     <>
@@ -34,14 +36,47 @@ export const Header: React.FC<HeaderProps> = ({ activeScreen, onNavigate }) => {
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-high/90 text-on-surface-variant font-label-md text-[10px] tracking-wide uppercase shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
-                  TALLER ACTIVO • Villa Luzuriaga
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      isCloudConnected ? 'bg-tertiary animate-pulse' : 'bg-primary'
+                    }`}
+                  ></span>
+                  {isCloudConnected ? 'NUBE FIREBASE • Villa Luzuriaga' : 'TALLER ACTIVO • Villa Luzuriaga'}
                 </span>
               </div>
             </div>
           </button>
 
           <div className="flex items-center gap-space-xs shrink-0">
+            <button
+              type="button"
+              onClick={async () => {
+                if (!user) {
+                  try {
+                    await signIn();
+                  } catch {
+                    setShowProfile(true);
+                  }
+                } else {
+                  setShowProfile(!showProfile);
+                  setShowNotifications(false);
+                }
+              }}
+              className={`h-9 px-3 rounded-full flex items-center gap-1.5 text-[11px] font-semibold transition-all active:scale-95 ${
+                isCloudConnected
+                  ? 'bg-tertiary/15 text-tertiary border border-tertiary/30'
+                  : 'bg-primary-container/20 text-primary border border-primary/30 hover:bg-primary-container/30'
+              }`}
+              title={syncStatusText}
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {isCloudConnected ? 'cloud_done' : 'cloud_sync'}
+              </span>
+              <span className="hidden sm:inline">
+                {isCloudConnected ? 'Sincronizado' : 'Conectar Nube'}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
@@ -61,9 +96,18 @@ export const Header: React.FC<HeaderProps> = ({ activeScreen, onNavigate }) => {
                 setShowNotifications(false);
               }}
               aria-label="Perfil de operador"
-              className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 active:scale-95 transition-transform"
+              className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 active:scale-95 transition-transform overflow-hidden"
             >
-              <span className="material-symbols-outlined text-on-primary text-[18px]">person</span>
+              {user?.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt={user.displayName || 'Usuario'}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="material-symbols-outlined text-on-primary text-[18px]">person</span>
+              )}
             </button>
           </div>
         </div>
@@ -143,7 +187,7 @@ export const Header: React.FC<HeaderProps> = ({ activeScreen, onNavigate }) => {
         </div>
       )}
 
-      {/* Operator Profile Popover */}
+      {/* Operator Profile & Firebase Cloud Popover */}
       {showProfile && (
         <div
           className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-start justify-center pt-22 px-4"
@@ -155,12 +199,25 @@ export const Header: React.FC<HeaderProps> = ({ activeScreen, onNavigate }) => {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-title-sm">
-                  JL
+                <div className="w-11 h-11 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-title-sm overflow-hidden">
+                  {user?.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt={user.displayName || 'Usuario'}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    'JL'
+                  )}
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-title-sm text-title-sm font-bold text-on-surface">Leandro Llanes • J&amp;L</span>
-                  <span className="text-label-md text-on-surface-variant">Maestro Carpintero &amp; Admin • Villa Luzuriaga</span>
+                  <span className="font-title-sm text-title-sm font-bold text-on-surface">
+                    {user?.displayName || 'Leandro Llanes • J&L'}
+                  </span>
+                  <span className="text-label-md text-on-surface-variant">
+                    {user?.email || 'Maestro Carpintero & Admin • Villa Luzuriaga'}
+                  </span>
                 </div>
               </div>
               <button
@@ -170,6 +227,46 @@ export const Header: React.FC<HeaderProps> = ({ activeScreen, onNavigate }) => {
               >
                 <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
+            </div>
+
+            {/* Cloud Sync Status Card */}
+            <div className="p-3 rounded-2xl bg-surface-container flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span
+                  className={`material-symbols-outlined text-[20px] ${
+                    isCloudConnected ? 'text-tertiary' : 'text-primary'
+                  }`}
+                >
+                  {isCloudConnected ? 'cloud_done' : 'cloud_off'}
+                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-label-md font-bold text-on-surface truncate">
+                    {syncStatusText}
+                  </span>
+                  <span className="text-[11px] text-on-surface-variant truncate">
+                    {isCloudConnected
+                      ? 'Cortes, pedidos, stock y caja sincronizados en tiempo real'
+                      : 'Inicia sesión con Google para sincronizar dispositivos'}
+                  </span>
+                </div>
+              </div>
+              {user ? (
+                <button
+                  type="button"
+                  onClick={() => logOut()}
+                  className="px-3 py-1.5 rounded-xl bg-surface-container-highest text-on-surface-variant hover:text-on-surface text-label-md font-semibold shrink-0"
+                >
+                  Salir
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => signIn()}
+                  className="px-3 py-1.5 rounded-xl bg-primary text-on-primary text-label-md font-bold shrink-0"
+                >
+                  Conectar Google
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2 pt-1">

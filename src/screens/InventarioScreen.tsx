@@ -1,171 +1,142 @@
 import React, { useState } from 'react';
+import {
+  CloudInventoryCat,
+  CloudInventoryItem,
+  useWorkshopCloud,
+} from '../context/WorkshopCloudContext';
 
-type CategoryId = 'all' | 'placas' | 'cantos' | 'herrajes' | 'insumos';
+type CategoryId = 'all' | CloudInventoryCat;
+type InventoryItem = CloudInventoryItem;
 
-interface InventoryItem {
-  id: string;
-  cat: Exclude<CategoryId, 'all'>;
-  categoryLabel: string;
-  specLabel: string;
-  cornerTag: string;
-  title: string;
-  priceLabel: string;
-  image: string;
-  stock: number;
-  minSuggested: number;
-  unit: string;
-  statusType: 'bajo' | 'critico' | 'normal' | 'optimo';
-  urgentButtonLabel?: string;
-  urgentButtonIcon?: string;
+const DEFAULT_IMAGES: Record<CloudInventoryCat, string> = {
+  placas:
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuBFMD6KDHidiQNMT-Psf0lI6Numt03rT3fKTyWWb8zH2Ei3z5XLeViyRzbhQeNMoUYgT4PQJxwJ8zC-SjUlBETOFXtzn_f5mXGrXAz9eaPQkSkiNkQ440n117Ok8EWRT4Uoi3mcswFiZ7_j0M8x9xio5PSXHNeoGkzoIOGDeQZRekRV9vjNjij-UgSbs4fm0QsIHGzd3_MBPYXjO26VOepZpkqgmF61Yr_L0YbLR9r8iofyHJhR9lUeFg',
+  cantos:
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuCS4ZH1ozdXNYTx6M0HdWyhx6KSavd6M3pDhlOH-zW7OtMLQQm_jJlYOSGEksAzUXs-x-fKB7IzVJoYvOmM0cT1V4eKjgw5SEiA_UvVYWueD7YR1FlaTn6FnFcvB5UC0oeDBCCH-1I2Uf6xcZyfhyHc5HyBOwlUgRPypBhjkr0zqS6PLASZmZ6QO0bYwmir-vIlUVkwzL2rnpOLkudRQh8zrjLVEhm8JjeeKEwze8Zml2KPvPLSlYcTVw',
+  herrajes:
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuAWseLanin0qi4PIzEP4YX0sBD9gJOJRwvSoBi0alVDON-IoF6brolPwujCL15SjmlbrSOL2hxXtF6xuUruPITn_jizhiAwtXlLr2ojcCXx3q0sAGTtZNOVbsSjfaz8TMzQUcyoXU44oIijEphHb43O66kf3pWHCI8OSULki_r20WBrNgCRgiNZD70cIUxhgAeeMFWC0zMtQxo_2khQqI52SXiTiDGjARLUNNNq3qfEW_v6vE3QxpqdJQ',
+  insumos:
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuBM_72jvNxrexmCLHbBYCSwtcc9W1A_e5CodiRG45Yh-8Ox3ynl9GihuCLx2F9R64dWIjBTrWnAkpPzGZNCPmw2BCm-KmHBrQAhHLKIGFkD0YgwNs2jUwAw0CKsDtF91OVY75C2th8Dn4a-U9kAODrHlLhf13n0_1MkXPHMwfGFAi8MMuDUlOY_Q-6KiCfqRZ2KWwTSb1v8EsNgYrocC48jViUegUrUGTT-oOpa6v7_O2ZpsihvyPyAEw',
+};
+
+const CAT_LABEL_MAP: Record<CloudInventoryCat, string> = {
+  placas: 'Placas',
+  cantos: 'Cantos PVC',
+  herrajes: 'Herrajes',
+  insumos: 'Insumos',
+};
+
+function computeStockStatus(
+  stock: number,
+  minSuggested: number
+): InventoryItem['statusType'] {
+  if (stock <= 0 || stock <= Math.floor(minSuggested * 0.4)) return 'critico';
+  if (stock < minSuggested) return 'bajo';
+  if (stock >= minSuggested * 1.5) return 'optimo';
+  return 'normal';
 }
 
-const INITIAL_ITEMS: InventoryItem[] = [
-  {
-    id: '1',
-    cat: 'placas',
-    categoryLabel: 'Placas',
-    specLabel: '• Faplac 2.75x1.83m',
-    cornerTag: '18mm',
-    title: 'Placa Carvalho Mezzo 18mm',
-    priceLabel: '$48.200 / unidad',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuBFMD6KDHidiQNMT-Psf0lI6Numt03rT3fKTyWWb8zH2Ei3z5XLeViyRzbhQeNMoUYgT4PQJxwJ8zC-SjUlBETOFXtzn_f5mXGrXAz9eaPQkSkiNkQ440n117Ok8EWRT4Uoi3mcswFiZ7_j0M8x9xio5PSXHNeoGkzoIOGDeQZRekRV9vjNjij-UgSbs4fm0QsIHGzd3_MBPYXjO26VOepZpkqgmF61Yr_L0YbLR9r8iofyHJhR9lUeFg',
-    stock: 4,
-    minSuggested: 6,
-    unit: 'un',
-    statusType: 'bajo',
-  },
-  {
-    id: '2',
-    cat: 'cantos',
-    categoryLabel: 'Cantos PVC',
-    specLabel: '• Rollo 0.45mm',
-    cornerTag: '22mm',
-    title: 'Cantos Roble Dakar 22mm',
-    priceLabel: '$340 / metro lineal',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuCS4ZH1ozdXNYTx6M0HdWyhx6KSavd6M3pDhlOH-zW7OtMLQQm_jJlYOSGEksAzUXs-x-fKB7IzVJoYvOmM0cT1V4eKjgw5SEiA_UvVYWueD7YR1FlaTn6FnFcvB5UC0oeDBCCH-1I2Uf6xcZyfhyHc5HyBOwlUgRPypBhjkr0zqS6PLASZmZ6QO0bYwmir-vIlUVkwzL2rnpOLkudRQh8zrjLVEhm8JjeeKEwze8Zml2KPvPLSlYcTVw',
-    stock: 18,
-    minSuggested: 50,
-    unit: 'm',
-    statusType: 'critico',
-    urgentButtonLabel: 'Pedir a Distribuidor',
-    urgentButtonIcon: 'shopping_cart_checkout',
-  },
-  {
-    id: '3',
-    cat: 'herrajes',
-    categoryLabel: 'Herrajes',
-    specLabel: '• Cierre Suave',
-    cornerTag: '45cm',
-    title: 'Correderas Telescópicas 45cm',
-    priceLabel: '$9.800 / par (Ducasse)',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuAWseLanin0qi4PIzEP4YX0sBD9gJOJRwvSoBi0alVDON-IoF6brolPwujCL15SjmlbrSOL2hxXtF6xuUruPITn_jizhiAwtXlLr2ojcCXx3q0sAGTtZNOVbsSjfaz8TMzQUcyoXU44oIijEphHb43O66kf3pWHCI8OSULki_r20WBrNgCRgiNZD70cIUxhgAeeMFWC0zMtQxo_2khQqI52SXiTiDGjARLUNNNq3qfEW_v6vE3QxpqdJQ',
-    stock: 14,
-    minSuggested: 10,
-    unit: 'pares',
-    statusType: 'normal',
-  },
-  {
-    id: '4',
-    cat: 'insumos',
-    categoryLabel: 'Insumos',
-    specLabel: '• Allen Zincado',
-    cornerTag: '7x50',
-    title: 'Tornillos Soberbios 7x50mm',
-    priceLabel: '$18.500 / caja 500u',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuBM_72jvNxrexmCLHbBYCSwtcc9W1A_e5CodiRG45Yh-8Ox3ynl9GihuCLx2F9R64dWIjBTrWnAkpPzGZNCPmw2BCm-KmHBrQAhHLKIGFkD0YgwNs2jUwAw0CKsDtF91OVY75C2th8Dn4a-U9kAODrHlLhf13n0_1MkXPHMwfGFAi8MMuDUlOY_Q-6KiCfqRZ2KWwTSb1v8EsNgYrocC48jViUegUrUGTT-oOpa6v7_O2ZpsihvyPyAEw',
-    stock: 120,
-    minSuggested: 500,
-    unit: 'un',
-    statusType: 'critico',
-    urgentButtonLabel: 'Reponer Caja',
-    urgentButtonIcon: 'inventory',
-  },
-  {
-    id: '5',
-    cat: 'placas',
-    categoryLabel: 'Placas',
-    specLabel: '• Guillermina 2.75x1.83',
-    cornerTag: '18mm',
-    title: 'Placa Blanco Puro 18mm',
-    priceLabel: '$39.400 / unidad',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuAbJfWRGRZRXR_2KeD0RB06XQmSnbnlQZinziKIQXOjOA3MUNi8bJbevEXlcvA4wK4HDWE-gWnBlcBTNwIwmHSPEBYwyPeWAz50XqWwrVk_S6b21Uv0duJi-ynVzBdldRFvqhsypoUk9A6z3TWblh8m3LO2lQ8P-9-9E3ZfjQGy124IZpU-uhmwQs-L7VJtw94ElvcuRaNdv4IGNLmYyDgusxNQLy2UgfIVqGNvC1n3juoEjOQD6z-v7A',
-    stock: 8,
-    minSuggested: 4,
-    unit: 'un',
-    statusType: 'optimo',
-  },
-];
-
 export const InventarioScreen: React.FC = () => {
-  const [items, setItems] = useState<InventoryItem[]>(INITIAL_ITEMS);
+  const {
+    inventory: items,
+    createInventoryItem,
+    updateInventoryItem,
+    deleteInventoryItem,
+    updateInventoryStock,
+  } = useWorkshopCloud();
+
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [onlyCritical, setOnlyCritical] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [showNewItemModal, setShowNewItemModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // New Item Form State
   const [newName, setNewName] = useState('');
-  const [newCat, setNewCat] = useState<'Placas' | 'Cantos PVC' | 'Herrajes' | 'Insumos'>('Placas');
+  const [newCat, setNewCat] = useState<CloudInventoryCat>('placas');
+  const [newSpec, setNewSpec] = useState('• Faplac 2.75x1.83m');
+  const [newCornerTag, setNewCornerTag] = useState('18mm');
+  const [newPriceLabel, setNewPriceLabel] = useState('$42.000 / unidad');
   const [newUnit, setNewUnit] = useState('un');
-  const [newStock, setNewStock] = useState(1);
-  const [newMin, setNewMin] = useState(5);
+  const [newStock, setNewStock] = useState(5);
+  const [newMin, setNewMin] = useState(4);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => {
       setToastMsg((prev) => (prev === msg ? null : prev));
-    }, 2200);
+    }, 2400);
   };
 
   const adjustStock = (id: string, delta: number) => {
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) return item;
-        const nextStock = Math.max(0, item.stock + delta);
-        showToast(
-          delta > 0 ? `Cantidad sumada: ${nextStock}` : `Cantidad restada: ${nextStock}`
-        );
-        return { ...item, stock: nextStock };
-      })
+    const item = items.find((it) => it.id === id);
+    if (!item) return;
+    const nextStock = Math.max(0, item.stock + delta);
+    const nextStatus = computeStockStatus(nextStock, item.minSuggested);
+    updateInventoryStock(id, nextStock, nextStatus);
+    showToast(
+      delta > 0 ? `Cantidad sumada: ${nextStock} ${item.unit}` : `Cantidad restada: ${nextStock} ${item.unit}`
     );
   };
 
-  const handleSaveNewItem = () => {
+  const handleSaveNewItem = (e: React.FormEvent) => {
+    e.preventDefault();
     if (!newName.trim()) {
-      showToast('Ingresa el nombre del material');
+      showToast('Ingresa el nombre del material o insumo');
       return;
     }
-    const catMap: Record<string, Exclude<CategoryId, 'all'>> = {
-      Placas: 'placas',
-      'Cantos PVC': 'cantos',
-      Herrajes: 'herrajes',
-      Insumos: 'insumos',
-    };
+    const stockVal = Math.max(0, Number(newStock) || 0);
+    const minVal = Math.max(1, Number(newMin) || 1);
     const created: InventoryItem = {
-      id: String(Date.now()),
-      cat: catMap[newCat] || 'placas',
-      categoryLabel: newCat,
-      specLabel: '• Ingreso Manual',
-      cornerTag: '18mm',
-      title: newName.trim(),
-      priceLabel: '$42.000 / unidad',
-      image: INITIAL_ITEMS[0].image,
-      stock: Number(newStock) || 1,
-      minSuggested: Number(newMin) || 5,
-      unit: newUnit,
-      statusType: Number(newStock) < Number(newMin) ? 'bajo' : 'optimo',
+      id: `inv-${Date.now()}`,
+      cat: newCat,
+      categoryLabel: CAT_LABEL_MAP[newCat],
+      specLabel: (newSpec.trim().startsWith('•') ? newSpec.trim() : `• ${newSpec.trim()}`).slice(0, 80),
+      cornerTag: (newCornerTag.trim() || '18mm').slice(0, 20),
+      title: newName.trim().slice(0, 140),
+      priceLabel: (newPriceLabel.trim() || '$15.000 / unidad').slice(0, 60),
+      image: DEFAULT_IMAGES[newCat],
+      stock: stockVal,
+      minSuggested: minVal,
+      unit: (newUnit.trim() || 'un').slice(0, 30),
+      statusType: computeStockStatus(stockVal, minVal),
     };
-    setItems([created, ...items]);
+    createInventoryItem(created);
     setNewName('');
     setShowNewItemModal(false);
-    showToast('Material guardado en inventario');
+    showToast(`Material "${created.title}" agregado al inventario`);
+  };
+
+  const handleSaveEditItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+    if (!editingItem.title.trim()) {
+      showToast('El nombre del material no puede estar vacío');
+      return;
+    }
+    const stockVal = Math.max(0, Number(editingItem.stock) || 0);
+    const minVal = Math.max(0, Number(editingItem.minSuggested) || 0);
+    const updated: InventoryItem = {
+      ...editingItem,
+      title: editingItem.title.trim().slice(0, 140),
+      categoryLabel: CAT_LABEL_MAP[editingItem.cat],
+      stock: stockVal,
+      minSuggested: minVal,
+      statusType: computeStockStatus(stockVal, minVal),
+    };
+    updateInventoryItem(updated);
+    setEditingItem(null);
+    showToast(`Ficha de "${updated.title}" actualizada en tiempo real`);
+  };
+
+  const handleDeleteItem = (item: InventoryItem) => {
+    deleteInventoryItem(item.id);
+    if (editingItem?.id === item.id) {
+      setEditingItem(null);
+    }
+    showToast(`"${item.title}" eliminado del inventario`);
   };
 
   const filteredItems = items.filter((item) => {
@@ -179,6 +150,10 @@ export const InventarioScreen: React.FC = () => {
       !onlyCritical || item.statusType === 'critico' || item.statusType === 'bajo';
     return matchesCat && matchesSearch && matchesCrit;
   });
+
+  const criticalCount = items.filter(
+    (it) => it.statusType === 'critico' || it.statusType === 'bajo'
+  ).length;
 
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto px-margin pb-6 gap-space-md">
@@ -194,12 +169,12 @@ export const InventarioScreen: React.FC = () => {
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high">
             <span className="w-2 h-2 rounded-full bg-tertiary animate-ping"></span>
             <span className="font-telemetry-unit text-telemetry-unit text-on-surface-variant font-semibold">
-              ACTUALIZADO HOY
+              CRUD TIEMPO REAL
             </span>
           </div>
         </div>
         <p className="font-body-md text-body-md text-on-surface-variant">
-          Gestión de placas, cantos, herrajes e insumos en tiempo real.
+          Agrega, edita o elimina placas, cantos, herrajes e insumos en tiempo real.
         </p>
       </div>
 
@@ -232,15 +207,31 @@ export const InventarioScreen: React.FC = () => {
           </button>
         </div>
 
-        {/* Horizontal Category Selector with Admin Action */}
+        {/* Horizontal Category Selector */}
         <div className="flex items-center gap-space-xs overflow-x-auto no-scrollbar pt-1">
           {(
             [
-              { id: 'all', label: 'Todos', count: 38 },
-              { id: 'placas', label: 'Placas & Melaminas', count: 12 },
-              { id: 'cantos', label: 'Cantos PVC', count: 6 },
-              { id: 'herrajes', label: 'Herrajes & Guías', count: 14 },
-              { id: 'insumos', label: 'Tornillos & Insumos', count: 6 },
+              { id: 'all', label: 'Todos', count: items.length },
+              {
+                id: 'placas',
+                label: 'Placas & Melaminas',
+                count: items.filter((i) => i.cat === 'placas').length,
+              },
+              {
+                id: 'cantos',
+                label: 'Cantos PVC',
+                count: items.filter((i) => i.cat === 'cantos').length,
+              },
+              {
+                id: 'herrajes',
+                label: 'Herrajes & Guías',
+                count: items.filter((i) => i.cat === 'herrajes').length,
+              },
+              {
+                id: 'insumos',
+                label: 'Tornillos & Insumos',
+                count: items.filter((i) => i.cat === 'insumos').length,
+              },
             ] as { id: CategoryId; label: string; count: number }[]
           ).map((chip) => {
             const isSelected = selectedCategory === chip.id;
@@ -291,59 +282,72 @@ export const InventarioScreen: React.FC = () => {
           <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
             <span className="material-symbols-outlined text-[18px]">add_circle</span>
           </div>
-          <span className="truncate">+ Ingreso Stock</span>
+          <span className="truncate">+ Agregar Objeto / Stock</span>
         </button>
 
         <button
           type="button"
-          onClick={() => showToast('Iniciando ronda de inventario físico')}
+          onClick={() => {
+            setOnlyCritical(!onlyCritical);
+            showToast(
+              !onlyCritical ? 'Filtrando alertas de stock bajo' : 'Mostrando todos los objetos'
+            );
+          }}
           className="flex items-center justify-center gap-2 h-13 py-3 px-4 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-md text-label-md font-semibold transition-all shadow-sm active:scale-98"
         >
           <div className="w-7 h-7 rounded-full bg-secondary-container flex items-center justify-center text-secondary shrink-0">
             <span className="material-symbols-outlined text-[18px]">fact_check</span>
           </div>
-          <span className="truncate">Ajuste Físico</span>
+          <span className="truncate">
+            {onlyCritical ? 'Ver Todo el Stock' : `Alertas (${criticalCount})`}
+          </span>
         </button>
       </div>
 
       {/* Critical Threshold Warning Banner */}
-      <div className="flex flex-col bg-surface-container-high rounded-2xl p-space-md shadow-md overflow-hidden relative">
-        <div className="absolute -right-4 -bottom-4 w-28 h-28 rounded-full bg-tertiary-container/20 blur-2xl pointer-events-none"></div>
-        <div className="flex items-start justify-between gap-space-sm z-10">
-          <div className="flex items-start gap-space-sm min-w-0">
-            <div className="w-10 h-10 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-[22px]">warning</span>
+      {criticalCount > 0 && (
+        <div className="flex flex-col bg-surface-container-high rounded-2xl p-space-md shadow-md overflow-hidden relative">
+          <div className="absolute -right-4 -bottom-4 w-28 h-28 rounded-full bg-tertiary-container/20 blur-2xl pointer-events-none"></div>
+          <div className="flex items-start justify-between gap-space-sm z-10">
+            <div className="flex items-start gap-space-sm min-w-0">
+              <div className="w-10 h-10 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-[22px]">warning</span>
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="font-title-sm text-title-sm text-tertiary font-bold tracking-tight">
+                  Atención: {criticalCount} ítem{criticalCount === 1 ? '' : 's'} en quiebre / bajo
+                </span>
+                <p className="font-body-md text-body-md text-on-surface-variant mt-0.5 line-clamp-2">
+                  Revisa las existencias de placas, cantos o insumos por debajo del mínimo sugerido.
+                </p>
+              </div>
             </div>
-            <div className="flex flex-col min-w-0">
-              <span className="font-title-sm text-title-sm text-tertiary font-bold tracking-tight">
-                Atención: 3 ítems en quiebre
-              </span>
-              <p className="font-body-md text-body-md text-on-surface-variant mt-0.5 line-clamp-2">
-                Cantos PVC Dakar, Tornillos 7x50mm y Mezzo 18mm requieren reposición para los
-                proyectos de esta semana.
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setOnlyCritical(!onlyCritical);
+                showToast(
+                  !onlyCritical
+                    ? `Mostrando ${criticalCount} ítems en alerta`
+                    : 'Mostrando catálogo completo'
+                );
+              }}
+              className="shrink-0 px-3 py-1.5 rounded-full bg-surface-container-highest text-on-surface font-label-md text-label-md flex items-center gap-1 active:scale-95 transition-transform"
+            >
+              <span>{onlyCritical ? 'Todos' : 'Ver'}</span>
+              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setOnlyCritical(!onlyCritical);
-              showToast(
-                !onlyCritical ? 'Mostrando 3 ítems en quiebre' : 'Mostrando catálogo completo'
-              );
-            }}
-            className="shrink-0 px-3 py-1.5 rounded-full bg-surface-container-highest text-on-surface font-label-md text-label-md flex items-center gap-1 active:scale-95 transition-transform"
-          >
-            <span>{onlyCritical ? 'Todos' : 'Ver'}</span>
-            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-          </button>
         </div>
-      </div>
+      )}
 
-      {/* Inventory Items List */}
+      {/* Inventory Items List with Full Edit & Delete */}
       <div className="flex flex-col gap-space-sm">
         {filteredItems.map((item) => {
-          const pct = Math.min(100, Math.round((item.stock / item.minSuggested) * 100));
+          const pct = Math.min(
+            100,
+            Math.round((item.stock / Math.max(1, item.minSuggested)) * 100)
+          );
           return (
             <div
               key={item.id}
@@ -363,7 +367,7 @@ export const InventarioScreen: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-md text-[11px] font-medium">
                         {item.categoryLabel}
                       </span>
@@ -380,31 +384,51 @@ export const InventarioScreen: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Status Badge */}
-                {item.statusType === 'bajo' && (
-                  <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-tertiary-container/30 text-tertiary font-label-md text-label-md font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
-                    <span>Bajo</span>
+                {/* Status Badge + Quick Edit/Delete */}
+                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                  {item.statusType === 'bajo' && (
+                    <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-tertiary-container/30 text-tertiary font-label-md text-[11px] font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                      <span>Bajo</span>
+                    </div>
+                  )}
+                  {item.statusType === 'critico' && (
+                    <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-error-container text-on-error-container font-label-md text-[11px] font-semibold animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
+                      <span>Crítico</span>
+                    </div>
+                  )}
+                  {item.statusType === 'normal' && (
+                    <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container-highest text-secondary font-label-md text-[11px] font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                      <span>Normal</span>
+                    </div>
+                  )}
+                  {item.statusType === 'optimo' && (
+                    <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary-container/30 text-primary-fixed font-label-md text-[11px] font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                      <span>Óptimo</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setEditingItem({ ...item })}
+                      title="Editar Objeto"
+                      className="w-8 h-8 rounded-full bg-surface-container-high hover:bg-primary hover:text-on-primary text-on-surface-variant flex items-center justify-center transition-colors active:scale-95"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteItem(item)}
+                      title="Eliminar Objeto"
+                      className="w-8 h-8 rounded-full bg-surface-container-high hover:bg-error-container hover:text-on-error-container text-on-surface-variant flex items-center justify-center transition-colors active:scale-95"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">delete</span>
+                    </button>
                   </div>
-                )}
-                {item.statusType === 'critico' && (
-                  <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-error-container text-on-error-container font-label-md text-label-md font-semibold animate-pulse">
-                    <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
-                    <span>Crítico</span>
-                  </div>
-                )}
-                {item.statusType === 'normal' && (
-                  <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-highest text-secondary font-label-md text-label-md font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-                    <span>Normal</span>
-                  </div>
-                )}
-                {item.statusType === 'optimo' && (
-                  <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary-container/30 text-primary-fixed font-label-md text-label-md font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                    <span>Óptimo</span>
-                  </div>
-                )}
+                </div>
               </div>
 
               {/* Micro Stock Telemetry & Progress Gauge */}
@@ -443,29 +467,24 @@ export const InventarioScreen: React.FC = () => {
 
               {/* Card Action Footer */}
               <div className="mt-3 pt-2 flex items-center justify-between gap-space-sm">
-                {item.urgentButtonLabel ? (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() =>
-                      showToast(`Orden de reposición (${item.title}) enviada a compras`)
-                    }
-                    className="flex-1 h-10 px-4 rounded-full bg-error-container text-on-error-container font-label-md text-label-md font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                    onClick={() => setEditingItem({ ...item })}
+                    className="px-3 py-1.5 rounded-full bg-surface-container-high hover:bg-surface-bright text-secondary hover:text-on-surface font-label-md text-label-md flex items-center gap-1 transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[17px]">
-                      {item.urgentButtonIcon}
-                    </span>
-                    <span>{item.urgentButtonLabel}</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => showToast(`Editando ficha técnica: ${item.title}`)}
-                    className="text-secondary hover:text-on-surface font-label-md text-label-md flex items-center gap-1 py-1"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">edit_note</span>
+                    <span className="material-symbols-outlined text-[16px]">edit_note</span>
                     <span>Editar Ficha</span>
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteItem(item)}
+                    className="px-3 py-1.5 rounded-full bg-surface-container-high hover:bg-error-container hover:text-on-error-container text-on-surface-variant font-label-md text-label-md flex items-center gap-1 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                    <span>Eliminar</span>
+                  </button>
+                </div>
 
                 <div className="flex items-center gap-1 bg-surface-container-high rounded-full p-1 shadow-inner">
                   <button
@@ -520,7 +539,7 @@ export const InventarioScreen: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary">category</span>
                 <h3 className="font-title-sm text-title-sm text-on-surface font-bold">
-                  Administrar Categorías
+                  Categorías de Inventario
                 </h3>
               </div>
               <button
@@ -531,75 +550,43 @@ export const InventarioScreen: React.FC = () => {
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
-            <p className="font-body-md text-body-md text-on-surface-variant">
-              Modifica, añade o limpia grupos de insumos del taller.
-            </p>
-            <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1 no-scrollbar">
-              {[
-                'Placas & Melaminas',
-                'Cantos PVC',
-                'Herrajes & Guías',
-                'Tornillos & Insumos',
-              ].map((catName) => (
-                <div
-                  key={catName}
-                  className="flex items-center justify-between p-2.5 rounded-2xl bg-surface-container"
+            <div className="flex flex-col gap-2">
+              {(
+                [
+                  { id: 'placas', name: 'Placas & Melaminas' },
+                  { id: 'cantos', name: 'Cantos PVC' },
+                  { id: 'herrajes', name: 'Herrajes & Guías' },
+                  { id: 'insumos', name: 'Tornillos & Insumos' },
+                ] as { id: CloudInventoryCat; name: string }[]
+              ).map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(cat.id);
+                    setShowCategoriesModal(false);
+                  }}
+                  className="flex items-center justify-between p-3 rounded-2xl bg-surface-container hover:bg-surface-bright text-left"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-on-surface-variant text-[18px]">
-                      drag_handle
-                    </span>
-                    <span className="font-body-md text-body-md text-on-surface font-medium">
-                      {catName}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => showToast(`Categoría "${catName}" actualizada`)}
-                      className="p-1.5 text-on-surface-variant hover:text-primary"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">edit</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => showToast(`No se puede eliminar categoría activa`)}
-                      className="p-1.5 text-on-surface-variant hover:text-error"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">delete</span>
-                    </button>
-                  </div>
-                </div>
+                  <span className="font-body-md text-on-surface font-medium">{cat.name}</span>
+                  <span className="text-label-md text-primary font-semibold">
+                    {items.filter((i) => i.cat === cat.id).length} ítems
+                  </span>
+                </button>
               ))}
-            </div>
-            <div className="flex gap-2 pt-2">
-              <input
-                className="flex-1 h-11 px-4 rounded-full bg-surface-container text-on-surface text-body-md focus:outline-none"
-                placeholder="Nombre nueva categoría..."
-                type="text"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCategoriesModal(false);
-                  showToast('Categoría agregada al taller');
-                }}
-                className="px-4 h-11 rounded-full bg-secondary text-on-secondary font-label-md text-label-md font-semibold active:scale-95 transition-transform shrink-0"
-              >
-                + Agregar
-              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal 2: New Item / Material */}
+      {/* Modal 2: Create New Item / Material */}
       {showNewItemModal && (
         <div
           className="fixed inset-0 z-50 bg-surface-dim/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4"
           onClick={() => setShowNewItemModal(false)}
         >
-          <div
+          <form
+            onSubmit={handleSaveNewItem}
             className="w-full max-w-md bg-surface-container-high rounded-t-3xl sm:rounded-3xl p-space-lg shadow-2xl flex flex-col gap-space-md"
             onClick={(e) => e.stopPropagation()}
           >
@@ -607,7 +594,7 @@ export const InventarioScreen: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary">add_box</span>
                 <h3 className="font-title-sm text-title-sm text-on-surface font-bold">
-                  Nuevo Material / Insumo
+                  Agregar Objeto / Material al Taller
                 </h3>
               </div>
               <button
@@ -622,13 +609,13 @@ export const InventarioScreen: React.FC = () => {
             <div className="flex flex-col gap-3">
               <div>
                 <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
-                  Nombre del Material
+                  Nombre del Objeto / Material
                 </label>
                 <input
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full h-12 px-4 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
-                  placeholder="Ej: Placa Roble Americano 18mm"
+                  className="w-full h-11 px-4 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
+                  placeholder="Ej: Placa Roble Americano 18mm / Bisagra Cazoleta 35mm"
                   type="text"
                 />
               </div>
@@ -640,13 +627,13 @@ export const InventarioScreen: React.FC = () => {
                   </label>
                   <select
                     value={newCat}
-                    onChange={(e) => setNewCat(e.target.value as any)}
-                    className="w-full h-12 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
+                    onChange={(e) => setNewCat(e.target.value as CloudInventoryCat)}
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
                   >
-                    <option value="Placas">Placas</option>
-                    <option value="Cantos PVC">Cantos PVC</option>
-                    <option value="Herrajes">Herrajes</option>
-                    <option value="Insumos">Insumos</option>
+                    <option value="placas">Placas &amp; Melaminas</option>
+                    <option value="cantos">Cantos PVC</option>
+                    <option value="herrajes">Herrajes &amp; Guías</option>
+                    <option value="insumos">Tornillos &amp; Insumos</option>
                   </select>
                 </div>
                 <div>
@@ -656,12 +643,12 @@ export const InventarioScreen: React.FC = () => {
                   <select
                     value={newUnit}
                     onChange={(e) => setNewUnit(e.target.value)}
-                    className="w-full h-12 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
                   >
-                    <option value="un">Unidades (Placas)</option>
-                    <option value="m">Metros (Cantos)</option>
-                    <option value="pares">Pares (Guías)</option>
-                    <option value="un">Caja / Cantidad</option>
+                    <option value="un">Unidades (un)</option>
+                    <option value="m">Metros (m)</option>
+                    <option value="pares">Pares (pares)</option>
+                    <option value="cajas">Cajas (cajas)</option>
                   </select>
                 </div>
               </div>
@@ -669,23 +656,62 @@ export const InventarioScreen: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
+                    Marca / Especificación
+                  </label>
+                  <input
+                    value={newSpec}
+                    onChange={(e) => setNewSpec(e.target.value)}
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
+                    placeholder="• Faplac 2.75x1.83m"
+                    type="text"
+                  />
+                </div>
+                <div>
+                  <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
+                    Espesor / Medida Corta
+                  </label>
+                  <input
+                    value={newCornerTag}
+                    onChange={(e) => setNewCornerTag(e.target.value)}
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
+                    placeholder="18mm / 45cm"
+                    type="text"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
+                    Precio Ref.
+                  </label>
+                  <input
+                    value={newPriceLabel}
+                    onChange={(e) => setNewPriceLabel(e.target.value)}
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
+                    placeholder="$42.000 / un"
+                    type="text"
+                  />
+                </div>
+                <div>
+                  <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
                     Stock Inicial
                   </label>
                   <input
                     value={newStock}
                     onChange={(e) => setNewStock(Number(e.target.value))}
-                    className="w-full h-12 px-4 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none font-mono"
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none font-mono"
                     type="number"
                   />
                 </div>
                 <div>
                   <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
-                    Alerta Mínima
+                    Mínimo Sugerido
                   </label>
                   <input
                     value={newMin}
                     onChange={(e) => setNewMin(Number(e.target.value))}
-                    className="w-full h-12 px-4 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none font-mono"
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none font-mono"
                     type="number"
                   />
                 </div>
@@ -693,13 +719,189 @@ export const InventarioScreen: React.FC = () => {
             </div>
 
             <button
-              type="button"
-              onClick={handleSaveNewItem}
+              type="submit"
               className="w-full h-13 py-3 rounded-full bg-primary text-on-primary font-headline-md text-headline-md font-semibold mt-2 active:scale-98 transition-transform"
             >
               Guardar en Inventario
             </button>
-          </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal 3: Edit Existing Item / Material */}
+      {editingItem && (
+        <div
+          className="fixed inset-0 z-50 bg-surface-dim/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={() => setEditingItem(null)}
+        >
+          <form
+            onSubmit={handleSaveEditItem}
+            className="w-full max-w-md bg-surface-container-high rounded-t-3xl sm:rounded-3xl p-space-lg shadow-2xl flex flex-col gap-space-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">edit_note</span>
+                <h3 className="font-title-sm text-title-sm text-on-surface font-bold">
+                  Editar Objeto de Inventario
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
+                  Nombre del Objeto / Material
+                </label>
+                <input
+                  value={editingItem.title}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, title: e.target.value })
+                  }
+                  className="w-full h-11 px-4 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
+                  type="text"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
+                    Categoría
+                  </label>
+                  <select
+                    value={editingItem.cat}
+                    onChange={(e) =>
+                      setEditingItem({
+                        ...editingItem,
+                        cat: e.target.value as CloudInventoryCat,
+                      })
+                    }
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
+                  >
+                    <option value="placas">Placas &amp; Melaminas</option>
+                    <option value="cantos">Cantos PVC</option>
+                    <option value="herrajes">Herrajes &amp; Guías</option>
+                    <option value="insumos">Tornillos &amp; Insumos</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
+                    Unidad de Medida
+                  </label>
+                  <input
+                    value={editingItem.unit}
+                    onChange={(e) =>
+                      setEditingItem({ ...editingItem, unit: e.target.value })
+                    }
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
+                    type="text"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
+                    Marca / Especificación
+                  </label>
+                  <input
+                    value={editingItem.specLabel}
+                    onChange={(e) =>
+                      setEditingItem({ ...editingItem, specLabel: e.target.value })
+                    }
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
+                    type="text"
+                  />
+                </div>
+                <div>
+                  <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
+                    Espesor / Medida Corta
+                  </label>
+                  <input
+                    value={editingItem.cornerTag}
+                    onChange={(e) =>
+                      setEditingItem({ ...editingItem, cornerTag: e.target.value })
+                    }
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
+                    type="text"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
+                    Precio Ref.
+                  </label>
+                  <input
+                    value={editingItem.priceLabel}
+                    onChange={(e) =>
+                      setEditingItem({ ...editingItem, priceLabel: e.target.value })
+                    }
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none"
+                    type="text"
+                  />
+                </div>
+                <div>
+                  <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
+                    Stock Actual
+                  </label>
+                  <input
+                    value={editingItem.stock}
+                    onChange={(e) =>
+                      setEditingItem({
+                        ...editingItem,
+                        stock: Math.max(0, Number(e.target.value)),
+                      })
+                    }
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none font-mono"
+                    type="number"
+                  />
+                </div>
+                <div>
+                  <label className="block font-label-md text-label-md text-on-surface-variant mb-1">
+                    Mínimo Sugerido
+                  </label>
+                  <input
+                    value={editingItem.minSuggested}
+                    onChange={(e) =>
+                      setEditingItem({
+                        ...editingItem,
+                        minSuggested: Math.max(0, Number(e.target.value)),
+                      })
+                    }
+                    className="w-full h-11 px-3 rounded-2xl bg-surface-container text-on-surface text-body-md focus:outline-none font-mono"
+                    type="number"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => handleDeleteItem(editingItem)}
+                className="px-4 h-12 rounded-full bg-error-container text-on-error-container font-label-md font-semibold flex items-center justify-center gap-1 active:scale-95"
+              >
+                <span className="material-symbols-outlined text-[18px]">delete</span>
+                <span>Eliminar</span>
+              </button>
+              <button
+                type="submit"
+                className="flex-1 h-12 rounded-full bg-primary text-on-primary font-label-md font-semibold flex items-center justify-center gap-1.5 active:scale-95"
+              >
+                <span className="material-symbols-outlined text-[18px]">save</span>
+                <span>Guardar Cambios</span>
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

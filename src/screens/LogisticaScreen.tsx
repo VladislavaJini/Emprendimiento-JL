@@ -1,79 +1,37 @@
 import React, { useState } from 'react';
 
-interface DestinationOption {
-  id: string;
-  label: string;
-  name: string;
-  distanceKm: number;
-  timeText: string;
-  pinLabel: string;
-}
-
-const DESTINATIONS: DestinationOption[] = [
-  {
-    id: 'ramos',
-    label: 'Av. de Mayo 850, Ramos Mejía (8.4 km)',
-    name: 'Av. de Mayo 850, Ramos Mejía',
-    distanceKm: 8.4,
-    timeText: '22 min (Tránsito fluido)',
-    pinLabel: 'Arq. Rossi (#PED-1084)',
-  },
-  {
-    id: 'castelar',
-    label: 'Castelar Norte (6.2 km)',
-    name: 'Castelar Norte',
-    distanceKm: 6.2,
-    timeText: '18 min',
-    pinLabel: 'Lucas Benítez (#PED-1088)',
-  },
-  {
-    id: 'caballito',
-    label: 'Caballito, CABA (16.5 km)',
-    name: 'Caballito, CABA',
-    distanceKm: 16.5,
-    timeText: '40 min (Por Autopista)',
-    pinLabel: 'Caballito CABA',
-  },
-  {
-    id: 'nordelta',
-    label: 'Nordelta, Tigre (42.0 km)',
-    name: 'Nordelta, Tigre',
-    distanceKm: 42.0,
-    timeText: '68 min (Acceso Norte)',
-    pinLabel: 'Nordelta Tigre',
-  },
-  {
-    id: 'luzuriaga',
-    label: 'Radio Local Luzuriaga (1.2 km)',
-    name: 'Radio Local Villa Luzuriaga',
-    distanceKm: 1.2,
-    timeText: '5 min',
-    pinLabel: 'Arq. Peña (#PED-1091)',
-  },
-];
+const FIXED_ORIGIN_DISPLAY = 'Taller J&L • Garibaldi y Triunvirato';
+const FIXED_ORIGIN_SUB = 'Villa Luzuriaga, La Matanza';
+const FIXED_ORIGIN_GMAPS = 'Garibaldi y Triunvirato, Villa Luzuriaga, La Matanza, Buenos Aires';
 
 export const LogisticaScreen: React.FC = () => {
-  const [selectedDestId, setSelectedDestId] = useState('ramos');
+  const [destinationAddress, setDestinationAddress] = useState('Av. de Mayo 850, Ramos Mejía');
+  const [distanceKm, setDistanceKm] = useState<number>(8.4);
   const [ratePerKm, setRatePerKm] = useState(1200);
   const [zoneRates, setZoneRates] = useState({ z1: 12000, z2: 18500, z3: 26000 });
   const [copiedState, setCopiedState] = useState(false);
   const [fuelUpdated, setFuelUpdated] = useState(false);
 
   const baseFee = 8000;
-  const currentDest =
-    DESTINATIONS.find((d) => d.id === selectedDestId) || DESTINATIONS[0];
-  const totalCost = Math.round(baseFee + currentDest.distanceKm * ratePerKm);
+  const safeDistance = Math.max(0, Number(distanceKm) || 0);
+  const totalCost = Math.round(baseFee + safeDistance * ratePerKm);
 
-  const gmapsUrl = `https://www.google.com/maps/dir/${encodeURIComponent(
-    'Villa Luzuriaga, Garibaldi y Triunvirato, Buenos Aires'
-  )}/${encodeURIComponent(currentDest.name + ', Buenos Aires')}`;
+  const cleanDestination = destinationAddress.trim() || 'Ramos Mejía, Buenos Aires';
+  const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+    FIXED_ORIGIN_GMAPS
+  )}&destination=${encodeURIComponent(cleanDestination)}&travelmode=driving`;
+
+  const buildOrderGmapsUrl = (targetPlace: string) =>
+    `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+      FIXED_ORIGIN_GMAPS
+    )}&destination=${encodeURIComponent(targetPlace + ', Buenos Aires')}&travelmode=driving`;
 
   const handleCopyQuote = () => {
-    const textToCopy = `*Cotización de Flete Muebles J&L*\nOrigen: Taller Villa Luzuriaga\nDestino: ${
-      currentDest.name
-    } (${currentDest.distanceKm.toFixed(1)} km)\nTarifa estimada: $${totalCost.toLocaleString(
+    const textToCopy = `*Cotización de Flete Muebles J&L*\nOrigen: ${FIXED_ORIGIN_DISPLAY} (${FIXED_ORIGIN_SUB})\nDestino: ${cleanDestination} (${safeDistance.toFixed(
+      1
+    )} km)\nTarifa estimada: $${totalCost.toLocaleString(
       'es-AR'
-    )} ARS\nTiempo aproximado de viaje: ${currentDest.timeText}`;
+    )} ARS (Base $8.000 + $${ratePerKm.toLocaleString('es-AR')}/km)\nRuta Google Maps: ${gmapsUrl}`;
 
     navigator.clipboard?.writeText(textToCopy).catch(() => {});
     setCopiedState(true);
@@ -99,7 +57,7 @@ export const LogisticaScreen: React.FC = () => {
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container/60 backdrop-blur-md">
             <span className="w-2 h-2 rounded-full bg-primary animate-ping"></span>
             <span className="font-label-md text-label-md text-primary font-semibold tracking-wide">
-              GPS ACTIVO • TARIFA $/KM DINÁMICA
+              COTIZADOR ACTIVO • TARIFA $/KM DINÁMICA
             </span>
           </div>
           <span className="font-telemetry-unit text-telemetry-unit text-outline uppercase tracking-wider">
@@ -108,7 +66,7 @@ export const LogisticaScreen: React.FC = () => {
         </div>
         <div className="flex flex-col mt-1">
           <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface font-bold tracking-tight">
-            Logística &amp; Fletes GPS
+            Logística &amp; Cotizador de Fletes
           </h1>
           <p className="font-body-md text-body-md text-on-surface-variant flex items-center gap-1 mt-0.5">
             <span className="material-symbols-outlined text-[16px] text-tertiary">near_me</span>
@@ -119,7 +77,7 @@ export const LogisticaScreen: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. Widget Calculadora de Flete & Ruteo en Tiempo Real */}
+      {/* 2. Widget Calculadora de Flete & Ruteo Directo a Google Maps */}
       <section className="rounded-3xl bg-surface-container/85 backdrop-blur-xl p-space-md shadow-xl flex flex-col gap-space-md">
         <div className="flex items-center justify-between pb-space-xs">
           <div className="flex items-center gap-2">
@@ -135,9 +93,9 @@ export const LogisticaScreen: React.FC = () => {
           </span>
         </div>
 
-        {/* Puntos Origen y Destino */}
+        {/* Puntos Origen Fijo y Destino Manual */}
         <div className="flex flex-col gap-space-sm">
-          {/* Origen Fijo */}
+          {/* Origen Fijo Intacto */}
           <div className="rounded-2xl bg-surface-container-low p-3 flex items-start gap-3">
             <div className="mt-0.5 w-6 h-6 rounded-full bg-tertiary-container/60 flex items-center justify-center text-tertiary shrink-0">
               <span className="material-symbols-outlined text-[14px]">warehouse</span>
@@ -155,34 +113,82 @@ export const LogisticaScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* Selector Destino */}
-          <div className="rounded-2xl bg-surface-container-high p-3 flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-on-surface-variant font-label-md text-[11px] uppercase tracking-wider">
-              <span className="material-symbols-outlined text-[14px] text-primary">
-                location_on
+          {/* Ingreso Directo de Destino y Distancia para Ruta en Google Maps */}
+          <div className="rounded-2xl bg-surface-container-high p-3 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-on-surface-variant font-label-md text-[11px] uppercase tracking-wider">
+                <span className="material-symbols-outlined text-[15px] text-primary">
+                  location_on
+                </span>
+                <span>Dirección o Localidad de Destino</span>
+              </div>
+              <span className="text-[10px] font-label-md text-secondary">
+                Ruta directa en Google Maps
               </span>
-              <span>Seleccionar Destino (GBA / CABA)</span>
             </div>
-            <div className="relative">
-              <select
-                value={selectedDestId}
-                onChange={(e) => setSelectedDestId(e.target.value)}
-                className="w-full bg-surface-container-lowest text-on-surface font-body-md text-body-md rounded-xl px-3 py-2.5 appearance-none focus:outline-none pr-8"
-              >
-                {DESTINATIONS.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-              <span className="material-symbols-outlined absolute right-3 top-3 text-[18px] text-on-surface-variant pointer-events-none">
-                expand_more
+
+            <div className="flex items-center gap-2 bg-surface-container-lowest rounded-xl px-3 py-2.5 border border-outline-variant/20 focus-within:border-primary">
+              <span className="material-symbols-outlined text-[18px] text-primary shrink-0">
+                place
               </span>
+              <input
+                type="text"
+                value={destinationAddress}
+                onChange={(e) => setDestinationAddress(e.target.value)}
+                placeholder="Ej: Av. de Mayo 850, Ramos Mejía / Caballito, CABA..."
+                className="w-full bg-transparent text-on-surface font-body-md text-body-md focus:outline-none placeholder:text-outline"
+              />
+              {destinationAddress && (
+                <button
+                  type="button"
+                  onClick={() => setDestinationAddress('')}
+                  aria-label="Limpiar destino"
+                  className="text-on-surface-variant hover:text-on-surface flex items-center justify-center"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              )}
+            </div>
+
+            {/* Distancia Manual Estimada (km) para el cálculo de tarifa */}
+            <div className="flex items-center justify-between gap-2 pt-0.5">
+              <span className="font-label-md text-[11px] text-on-surface-variant">
+                Distancia de ruta (km) p/ cálculo:
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDistanceKm((d) => Math.max(0.5, Number((d - 1).toFixed(1))))
+                  }
+                  className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-bright text-on-surface font-bold flex items-center justify-center active:scale-95"
+                >
+                  -
+                </button>
+                <div className="flex items-center bg-surface-container-lowest rounded-lg px-2.5 h-8 border border-outline-variant/20">
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={distanceKm}
+                    onChange={(e) => setDistanceKm(Math.max(0, Number(e.target.value)))}
+                    className="w-14 bg-transparent text-center font-telemetry-num text-[14px] text-on-surface focus:outline-none"
+                  />
+                  <span className="text-[11px] text-on-surface-variant ml-1">km</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDistanceKm((d) => Number((d + 1).toFixed(1)))}
+                  className="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-bright text-on-surface font-bold flex items-center justify-center active:scale-95"
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Ajuste de Tarifa por Km y Base */}
+        {/* Ajuste de Tarifa por Km y Base (Intacto) */}
         <div className="rounded-2xl bg-surface-container-low p-3 flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <span className="font-label-md text-label-md text-on-surface-variant">
@@ -223,29 +229,29 @@ export const LogisticaScreen: React.FC = () => {
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col">
               <span className="font-label-md text-[11px] text-outline uppercase tracking-wider">
-                Distancia estimada
+                Distancia calculada
               </span>
               <span className="font-telemetry-num text-telemetry-num text-on-surface">
-                {currentDest.distanceKm.toFixed(1)} km
+                {safeDistance.toFixed(1)} km
               </span>
             </div>
             <div className="flex flex-col">
               <span className="font-label-md text-[11px] text-outline uppercase tracking-wider">
-                Tiempo en tránsito
+                Destino configurado
               </span>
-              <span className="font-body-md text-body-md text-on-surface-variant font-medium">
-                {currentDest.timeText}
+              <span className="font-body-md text-body-md text-on-surface-variant font-medium truncate">
+                {cleanDestination}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between pt-2 border-t border-outline-variant/15">
             <div className="flex flex-col">
               <span className="font-label-md text-label-md text-primary font-medium">
                 Costo Total Sugerido
               </span>
               <span className="font-label-md text-[10px] text-outline">
-                Base $8.000 + (km × $/km)
+                Base $8.000 + ({safeDistance.toFixed(1)} km × ${ratePerKm.toLocaleString('es-AR')})
               </span>
             </div>
             <div className="flex items-baseline gap-1">
@@ -257,7 +263,7 @@ export const LogisticaScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Acciones Rápidas */}
+        {/* Botón Directo a Google Maps con Ruta Predefinida + Copiar Cotización */}
         <div className="flex flex-col gap-2">
           <a
             href={gmapsUrl}
@@ -265,7 +271,7 @@ export const LogisticaScreen: React.FC = () => {
             rel="noopener noreferrer"
             className="w-full h-13 py-3 rounded-full bg-primary hover:bg-primary-fixed-dim text-on-primary font-body-lg font-semibold flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(102,76,255,0.4)] active:scale-[0.98] transition-all"
           >
-            <span className="material-symbols-outlined text-[20px]">explore</span>
+            <span className="material-symbols-outlined text-[20px]">directions</span>
             <span>Abrir Ruta en Google Maps ↗</span>
           </a>
 
@@ -286,102 +292,7 @@ export const LogisticaScreen: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. Simulación de Mapa Interactivo Cartográfico Dark Mode */}
-      <section className="rounded-3xl bg-surface-container-low p-space-sm flex flex-col gap-3 shadow-md relative overflow-hidden">
-        <div className="flex items-center justify-between px-2 pt-2">
-          <div className="flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[18px] text-primary">map</span>
-            <span className="font-title-sm text-title-sm text-on-surface">
-              Telemetría de Ruta GBA
-            </span>
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-surface-container font-label-md text-[11px] text-on-surface-variant">
-            Capa Tránsito en Vivo
-          </span>
-        </div>
-
-        <div className="relative w-full h-56 rounded-2xl bg-surface-container-lowest overflow-hidden flex items-center justify-center">
-          <svg
-            className="absolute inset-0 w-full h-full text-surface-container-high"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <pattern
-                height="48"
-                id="grid-roads"
-                patternUnits="userSpaceOnUse"
-                width="48"
-              >
-                <path
-                  d="M 48 0 L 0 0 0 48"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeOpacity="0.35"
-                  strokeWidth="1.2"
-                />
-              </pattern>
-              <linearGradient id="route-gradient" x1="0%" x2="100%" y1="100%" y2="0%">
-                <stop offset="0%" stopColor="#be4424" />
-                <stop offset="50%" stopColor="#c7bfff" />
-                <stop offset="100%" stopColor="#664cff" />
-              </linearGradient>
-            </defs>
-            <rect fill="none" height="100%" width="100%" />
-            <rect fill="url(#grid-roads)" height="100%" width="100%" />
-            <path
-              d="M -20 180 Q 140 140 380 70"
-              fill="none"
-              stroke="#2a2934"
-              strokeLinecap="round"
-              strokeWidth="6"
-            />
-            <path d="M 60 230 L 260 -10" fill="none" stroke="#2a2934" strokeWidth="4" />
-            <path d="M 120 230 L 320 -10" fill="none" stroke="#2a2934" strokeWidth="3" />
-            <path d="M 10 70 L 400 120" fill="none" stroke="#2a2934" strokeWidth="4" />
-            <path
-              className="animate-pulse"
-              d="M 70 170 C 110 160 150 110 220 95 S 310 70 330 45"
-              fill="none"
-              stroke="url(#route-gradient)"
-              strokeDasharray="6,3"
-              strokeLinecap="round"
-              strokeWidth="4.5"
-            />
-          </svg>
-
-          {/* Pin Origen: Taller Villa Luzuriaga */}
-          <div className="absolute left-14 bottom-10 flex flex-col items-center">
-            <div className="px-2 py-0.5 rounded-full bg-surface-container-high text-[10px] font-label-md text-tertiary-fixed shadow-md mb-1 whitespace-nowrap">
-              Taller J&amp;L
-            </div>
-            <div className="w-6 h-6 rounded-full bg-tertiary-container flex items-center justify-center text-on-tertiary shadow-[0_0_12px_rgba(190,68,36,0.8)]">
-              <span className="material-symbols-outlined text-[13px]">
-                home_repair_service
-              </span>
-            </div>
-          </div>
-
-          {/* Pin Destino */}
-          <div className="absolute right-12 top-6 flex flex-col items-center">
-            <div className="px-2 py-0.5 rounded-full bg-primary-container text-[10px] font-label-md text-on-primary-container shadow-md mb-1 whitespace-nowrap">
-              {currentDest.pinLabel}
-            </div>
-            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary shadow-[0_0_15px_rgba(102,76,255,0.9)] animate-bounce">
-              <span className="material-symbols-outlined text-[14px]">flag</span>
-            </div>
-          </div>
-
-          {/* Badge de Alerta de Tránsito superpuesto */}
-          <div className="absolute bottom-2 right-2 px-2.5 py-1 rounded-xl bg-surface-container-high/90 backdrop-blur-md flex items-center gap-1.5 shadow-md">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-            <span className="font-label-md text-[10px] text-on-surface">
-              Sin peajes en tramo • Zona carga habilitada
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Envíos Programados de la Semana (Cola de Despachos) */}
+      {/* 3. Envíos Programados de la Semana (Cola de Despachos) */}
       <section className="flex flex-col gap-space-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -455,13 +366,13 @@ export const LogisticaScreen: React.FC = () => {
               <span>WhatsApp</span>
             </a>
             <a
-              href="https://maps.google.com"
+              href={buildOrderGmapsUrl('Ramos Mejía')}
               target="_blank"
               rel="noopener noreferrer"
               className="h-10 rounded-full bg-primary-container hover:bg-primary-container/80 text-on-primary-container font-label-md text-label-md font-semibold flex items-center justify-center gap-1 active:scale-95 transition-all"
             >
-              <span className="material-symbols-outlined text-[16px]">navigation</span>
-              <span>GPS</span>
+              <span className="material-symbols-outlined text-[16px]">directions</span>
+              <span>Maps ↗</span>
             </a>
           </div>
         </div>
@@ -496,8 +407,19 @@ export const LogisticaScreen: React.FC = () => {
               $15.440 ARS
             </span>
           </div>
-          <div className="text-[11px] font-label-md text-outline px-1">
-            Flete pactado • Costo de envío a cargo del cliente
+          <div className="flex items-center justify-between px-1 pt-0.5">
+            <span className="text-[11px] font-label-md text-outline">
+              Flete pactado • Costo de envío a cargo del cliente
+            </span>
+            <a
+              href={buildOrderGmapsUrl('Castelar')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] font-label-md text-primary font-semibold flex items-center gap-0.5 hover:underline"
+            >
+              <span>Ver ruta en Maps</span>
+              <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+            </a>
           </div>
         </div>
 
@@ -518,12 +440,23 @@ export const LogisticaScreen: React.FC = () => {
                 Villa Luzuriaga (1.2 km de base)
               </span>
             </div>
-            <span className="font-label-md text-label-md text-primary font-medium">05 Abril</span>
+            <div className="flex flex-col items-end gap-1">
+              <span className="font-label-md text-label-md text-primary font-medium">05 Abril</span>
+              <a
+                href={buildOrderGmapsUrl('Villa Luzuriaga')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] font-label-md text-secondary flex items-center gap-0.5 hover:underline"
+              >
+                <span>Ruta Maps</span>
+                <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* 5. Tabla de Tarifas Rápidas por Zona (GBA Oeste y CABA) */}
+      {/* 4. Tabla de Tarifas Rápidas por Zona (GBA Oeste y CABA) - Intacta */}
       <section className="rounded-3xl bg-surface-container-low p-space-md shadow-md flex flex-col gap-space-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

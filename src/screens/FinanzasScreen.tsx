@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useWorkshopCloud } from '../context/WorkshopCloudContext';
 
 interface CashMovement {
   id: string;
@@ -71,6 +72,7 @@ const INITIAL_MOVEMENTS: CashMovement[] = [
 ];
 
 export const FinanzasScreen: React.FC = () => {
+  const { movements, createCashMovement } = useWorkshopCloud();
   const formRef = useRef<HTMLElement | null>(null);
   const [highlightForm, setHighlightForm] = useState(false);
   const [entryType, setEntryType] = useState<'ingreso' | 'egreso'>('ingreso');
@@ -78,7 +80,6 @@ export const FinanzasScreen: React.FC = () => {
   const [concept, setConcept] = useState('');
   const [amountInput, setAmountInput] = useState('');
   const [clientInput, setClientInput] = useState('');
-  const [movements, setMovements] = useState<CashMovement[]>(INITIAL_MOVEMENTS);
   const [filterMode, setFilterMode] = useState<
     'todos' | 'ingreso' | 'egreso' | 'efectivo' | 'mp'
   >('todos');
@@ -103,20 +104,20 @@ export const FinanzasScreen: React.FC = () => {
       return;
     }
     const rawNum = Number(amountInput.replace(/\D/g, '')) || 85000;
-    const formatted = `${entryType === 'ingreso' ? '+' : '-'}$${rawNum.toLocaleString('es-AR')}`;
+    const formatted = `${entryType === 'ingreso' ? '+' : '-'}$${rawNum.toLocaleString('es-AR')}`.slice(0, 40);
     const newMov: CashMovement = {
       id: String(Date.now()),
       type: entryType,
-      title: concept.trim(),
+      title: concept.trim().slice(0, 160),
       subtitle:
         entryType === 'ingreso' ? 'Cobro registrado en caja' : 'Gasto operativo de taller',
       amountFormatted: formatted,
-      entity: clientInput.trim() || 'Operación Taller J&L',
+      entity: (clientInput.trim() || 'Operación Taller J&L').slice(0, 120),
       paymentMethod: payMethod,
       paymentLabel: payMethod === 'efectivo' ? 'Efectivo Taller' : 'MP Bancario',
       timestamp: 'Ahora mismo',
     };
-    setMovements([newMov, ...movements]);
+    createCashMovement(newMov);
     setConcept('');
     setAmountInput('');
     setClientInput('');

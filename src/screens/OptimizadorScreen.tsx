@@ -1,16 +1,49 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
 interface BoardOption {
   name: string;
   spec: string;
+  lengthMm: number;
+  widthMm: number;
   image: string;
   grainNote: string;
+}
+
+export interface CutItem {
+  id: string;
+  name: string;
+  lengthMm: number;
+  widthMm: number;
+  quantity: number;
+  edgeSpec: string;
+  respectGrain: boolean;
+}
+
+interface PlacedPiece {
+  instanceIndex: number;
+  cutId: string;
+  name: string;
+  lengthMm: number;
+  widthMm: number;
+  edgeSpec: string;
+  xMm: number;
+  yMm: number;
+  isPrimary: boolean;
+}
+
+interface FreeRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 const BOARD_OPTIONS: BoardOption[] = [
   {
     name: 'Carvalho Mezzo 18mm',
     spec: 'Faplac Texturado • 2750 × 1830 mm',
+    lengthMm: 2750,
+    widthMm: 1830,
     image:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuB2wP3mWnUoJi_J5zBbvCSbRIpxMp6RyeK6Mo7q6HPev0CDKCf1rjkwwBPsmteh0YCtbGeVlbNBVutGzqVlAtchNxwvQoWsY7IebNmTb8T2ON2QcY2S21eYlrXujhmJ_EpV7g6D4pBG3gyCwP8IYln1oNcRsv2OiixhlhuA9RiLUdYXHuzFrO9D-w_iUqf2SIPhMC68db9_YOMdbp71QxJE8DhsdEtWh7pBNdWoH_7UbU-x_MDxHw8sRw',
     grainNote: 'Veta Carvalho Mezzo',
@@ -18,6 +51,8 @@ const BOARD_OPTIONS: BoardOption[] = [
   {
     name: 'Blanco Puro 18mm',
     spec: 'Guillermina Mate • 2750 × 1830 mm',
+    lengthMm: 2750,
+    widthMm: 1830,
     image:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuAbJfWRGRZRXR_2KeD0RB06XQmSnbnlQZinziKIQXOjOA3MUNi8bJbevEXlcvA4wK4HDWE-gWnBlcBTNwIwmHSPEBYwyPeWAz50XqWwrVk_S6b21Uv0duJi-ynVzBdldRFvqhsypoUk9A6z3TWblh8m3LO2lQ8P-9-9E3ZfjQGy124IZpU-uhmwQs-L7VJtw94ElvcuRaNdv4IGNLmYyDgusxNQLy2UgfIVqGNvC1n3juoEjOQD6z-v7A',
     grainNote: 'Sin veta direccional',
@@ -25,25 +60,220 @@ const BOARD_OPTIONS: BoardOption[] = [
   {
     name: 'Roble Dakar 18mm',
     spec: 'Faplac Poro Profundo • 2750 × 1830 mm',
+    lengthMm: 2750,
+    widthMm: 1830,
     image:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuCS4ZH1ozdXNYTx6M0HdWyhx6KSavd6M3pDhlOH-zW7OtMLQQm_jJlYOSGEksAzUXs-x-fKB7IzVJoYvOmM0cT1V4eKjgw5SEiA_UvVYWueD7YR1FlaTn6FnFcvB5UC0oeDBCCH-1I2Uf6xcZyfhyHc5HyBOwlUgRPypBhjkr0zqS6PLASZmZ6QO0bYwmir-vIlUVkwzL2rnpOLkudRQh8zrjLVEhm8JjeeKEwze8Zml2KPvPLSlYcTVw',
     grainNote: 'Veta Roble Dakar',
   },
 ];
 
+const INITIAL_CUTS: CutItem[] = [
+  {
+    id: 'cut-1',
+    name: 'Tapa Mesa Principal',
+    lengthMm: 1200,
+    widthMm: 600,
+    quantity: 1,
+    edgeSpec: 'Cantos 4L (2mm)',
+    respectGrain: true,
+  },
+  {
+    id: 'cut-2',
+    name: 'Laterales de Módulo',
+    lengthMm: 720,
+    widthMm: 450,
+    quantity: 2,
+    edgeSpec: 'Cantos 2L Frontal',
+    respectGrain: true,
+  },
+  {
+    id: 'cut-3',
+    name: 'Estantes Regulables',
+    lengthMm: 560,
+    widthMm: 420,
+    quantity: 3,
+    edgeSpec: 'Canto 1L',
+    respectGrain: true,
+  },
+  {
+    id: 'cut-4',
+    name: 'Frentes de Cajón Soft',
+    lengthMm: 400,
+    widthMm: 180,
+    quantity: 4,
+    edgeSpec: 'Cantos 4L (Veta Continua)',
+    respectGrain: true,
+  },
+  {
+    id: 'cut-5',
+    name: 'Zócalo & Fondos Auxiliares',
+    lengthMm: 320,
+    widthMm: 260,
+    quantity: 4,
+    edgeSpec: 'Canto 1L Frontal',
+    respectGrain: false,
+  },
+];
+
+function computeGuillotineLayout(
+  cuts: CutItem[],
+  boardLength: number,
+  boardWidth: number,
+  kerfMm: number
+) {
+  // Expand cuts into individual pieces sorted by area descending
+  const expanded: {
+    cutId: string;
+    name: string;
+    lengthMm: number;
+    widthMm: number;
+    edgeSpec: string;
+    isPrimary: boolean;
+  }[] = [];
+
+  cuts.forEach((c, cIdx) => {
+    for (let i = 0; i < c.quantity; i++) {
+      expanded.push({
+        cutId: c.id,
+        name: c.quantity > 1 ? `${c.name} (${i + 1})` : c.name,
+        lengthMm: c.lengthMm,
+        widthMm: c.widthMm,
+        edgeSpec: c.edgeSpec,
+        isPrimary: cIdx < 2,
+      });
+    }
+  });
+
+  expanded.sort((a, b) => b.lengthMm * b.widthMm - a.lengthMm * a.widthMm);
+
+  const freeRects: FreeRect[] = [{ x: 0, y: 0, w: boardLength, h: boardWidth }];
+  const placed: PlacedPiece[] = [];
+  let unplacedCount = 0;
+
+  expanded.forEach((piece, idx) => {
+    // Find best free rectangle (Best Short Side Fit)
+    let bestRectIndex = -1;
+    let bestShortSide = Infinity;
+
+    for (let i = 0; i < freeRects.length; i++) {
+      const r = freeRects[i];
+      if (piece.lengthMm <= r.w && piece.widthMm <= r.h) {
+        const leftoverHoriz = r.w - piece.lengthMm;
+        const leftoverVert = r.h - piece.widthMm;
+        const shortSide = Math.min(leftoverHoriz, leftoverVert);
+        if (shortSide < bestShortSide) {
+          bestShortSide = shortSide;
+          bestRectIndex = i;
+        }
+      }
+    }
+
+    if (bestRectIndex !== -1) {
+      const rect = freeRects[bestRectIndex];
+      placed.push({
+        instanceIndex: idx + 1,
+        cutId: piece.cutId,
+        name: piece.name,
+        lengthMm: piece.lengthMm,
+        widthMm: piece.widthMm,
+        edgeSpec: piece.edgeSpec,
+        xMm: rect.x,
+        yMm: rect.y,
+        isPrimary: piece.isPrimary,
+      });
+
+      // Split rect using Guillotine cut + saw kerf
+      freeRects.splice(bestRectIndex, 1);
+      const rightW = rect.w - piece.lengthMm - kerfMm;
+      const bottomH = rect.h - piece.widthMm - kerfMm;
+
+      // Split along the longer axis to maximize usable stock offcuts
+      if (rightW * rect.h > bottomH * rect.w) {
+        if (rightW > 20) {
+          freeRects.push({
+            x: rect.x + piece.lengthMm + kerfMm,
+            y: rect.y,
+            w: rightW,
+            h: rect.h,
+          });
+        }
+        if (bottomH > 20) {
+          freeRects.push({
+            x: rect.x,
+            y: rect.y + piece.widthMm + kerfMm,
+            w: piece.lengthMm,
+            h: bottomH,
+          });
+        }
+      } else {
+        if (bottomH > 20) {
+          freeRects.push({
+            x: rect.x,
+            y: rect.y + piece.widthMm + kerfMm,
+            w: rect.w,
+            h: bottomH,
+          });
+        }
+        if (rightW > 20) {
+          freeRects.push({
+            x: rect.x + piece.lengthMm + kerfMm,
+            y: rect.y,
+            w: rightW,
+            h: piece.widthMm,
+          });
+        }
+      }
+    } else {
+      unplacedCount++;
+    }
+  });
+
+  // Sort remaining free rectangles by area descending to identify usable offcuts (> 0.20 m²)
+  const sortedFree = [...freeRects].sort((a, b) => b.w * b.h - a.w * a.h);
+  const usableOffcuts = sortedFree.filter((r) => (r.w * r.h) / 1_000_000 >= 0.2);
+  const scrapRects = sortedFree.filter((r) => (r.w * r.h) / 1_000_000 < 0.2 && r.w * r.h >= 25000);
+
+  const totalBoardAreaMm2 = boardLength * boardWidth;
+  const usedAreaMm2 = placed.reduce((acc, p) => acc + p.lengthMm * p.widthMm, 0);
+  const wasteAreaMm2 = Math.max(0, totalBoardAreaMm2 - usedAreaMm2);
+  const yieldPercent =
+    totalBoardAreaMm2 > 0 ? Math.min(100, (usedAreaMm2 / totalBoardAreaMm2) * 100) : 0;
+
+  return {
+    placed,
+    totalRequested: expanded.length,
+    unplacedCount,
+    usableOffcuts,
+    scrapRects,
+    usedAreaMm2,
+    wasteAreaMm2,
+    yieldPercent,
+  };
+}
+
 export const OptimizadorScreen: React.FC = () => {
   const [boardIndex, setBoardIndex] = useState(0);
   const [kerfMm, setKerfMm] = useState<number>(3.2);
+  const [cuts, setCuts] = useState<CutItem[]>(INITIAL_CUTS);
   const [isRecomputing, setIsRecomputing] = useState(false);
-  const [ringOffset, setRingOffset] = useState(29.15);
   const [isVerticalGrain, setIsVerticalGrain] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
-  const [showLabels, setShowLabels] = useState(false);
+  const [showLabels, setShowLabels] = useState(true);
   const [showSawGuides, setShowSawGuides] = useState(false);
-  const [selectedPiece, setSelectedPiece] = useState<number | null>(1);
+  const [selectedCutId, setSelectedCutId] = useState<string | null>('cut-1');
   const [retazoStocked, setRetazoStocked] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<'qr' | 'gcode' | null>(null);
+
+  // New Cut Form State
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newCutName, setNewCutName] = useState('');
+  const [newCutLength, setNewCutLength] = useState('800');
+  const [newCutWidth, setNewCutWidth] = useState('450');
+  const [newCutQty, setNewCutQty] = useState('1');
+  const [newCutEdge, setNewCutEdge] = useState('Cantos 4L (2mm)');
+  const [newCutGrain, setNewCutGrain] = useState(true);
 
   const currentBoard = BOARD_OPTIONS[boardIndex];
 
@@ -54,14 +284,91 @@ export const OptimizadorScreen: React.FC = () => {
     }, 2600);
   };
 
+  // Real-time 2D Guillotine Layout Calculation
+  const layout = useMemo(
+    () =>
+      computeGuillotineLayout(
+        cuts,
+        currentBoard.lengthMm,
+        currentBoard.widthMm,
+        kerfMm
+      ),
+    [cuts, currentBoard.lengthMm, currentBoard.widthMm, kerfMm]
+  );
+
+  // SVG Ring Dashoffset (circumference = 2 * pi * 40 = 251.32)
+  const circumference = 251.32;
+  const calculatedOffset =
+    circumference - (layout.yieldPercent / 100) * circumference;
+
   const handleRecompute = () => {
     setIsRecomputing(true);
-    setRingOffset(251.32);
     setTimeout(() => {
       setIsRecomputing(false);
-      setRingOffset(29.15);
-      triggerToast(`Algoritmo Guillotina ejecutado • Rendimiento 88.4% (${currentBoard.name})`);
-    }, 320);
+      triggerToast(
+        cuts.length === 0
+          ? 'Placa limpia lista • Agrega cortes para optimizar'
+          : `Algoritmo Guillotina ejecutado • Rendimiento ${layout.yieldPercent.toFixed(1)}%`
+      );
+    }, 280);
+  };
+
+  const handleStartBlankOrder = () => {
+    setCuts([]);
+    setSelectedCutId(null);
+    setRetazoStocked(false);
+    setShowAddForm(true);
+    triggerToast('Nueva orden iniciada • Placa entera virgen (2750 × 1830 mm)');
+  };
+
+  const handleRestoreDemoOrder = () => {
+    setCuts(INITIAL_CUTS);
+    setSelectedCutId('cut-1');
+    setShowAddForm(false);
+    triggerToast('Orden de ejemplo cargada (14 piezas)');
+  };
+
+  const handleAddCut = (e: React.FormEvent) => {
+    e.preventDefault();
+    const l = Math.min(currentBoard.lengthMm, Math.max(50, Number(newCutLength) || 600));
+    const w = Math.min(currentBoard.widthMm, Math.max(50, Number(newCutWidth) || 400));
+    const q = Math.min(30, Math.max(1, Number(newCutQty) || 1));
+    const name = newCutName.trim() || `Pieza Personalizada #${cuts.length + 1}`;
+
+    const newItem: CutItem = {
+      id: `cut-${Date.now()}`,
+      name,
+      lengthMm: l,
+      widthMm: w,
+      quantity: q,
+      edgeSpec: newCutEdge,
+      respectGrain: newCutGrain,
+    };
+
+    setCuts((prev) => [...prev, newItem]);
+    setSelectedCutId(newItem.id);
+    setNewCutName('');
+    triggerToast(`Corte agregado: ${name} (${l}×${w} mm ×${q})`);
+  };
+
+  const handleRemoveCut = (id: string, name: string) => {
+    setCuts((prev) => prev.filter((c) => c.id !== id));
+    if (selectedCutId === id) {
+      setSelectedCutId(null);
+    }
+    triggerToast(`Corte eliminado: ${name}`);
+  };
+
+  const handleUpdateCutQty = (id: string, delta: number) => {
+    setCuts((prev) =>
+      prev
+        .map((c) => {
+          if (c.id !== id) return c;
+          const nextQty = c.quantity + delta;
+          return nextQty > 0 ? { ...c, quantity: nextQty } : null;
+        })
+        .filter(Boolean) as CutItem[]
+    );
   };
 
   const handleSwapBoard = () => {
@@ -76,15 +383,14 @@ export const OptimizadorScreen: React.FC = () => {
     triggerToast(`Espesor de sierra ajustado a ${nextKerf.toFixed(1)} mm`);
   };
 
-  const handleExportPdf = () => {
-    triggerToast('Plano de Corte CAD (.PDF) generado y descargado');
-  };
+  const primaryOffcut = layout.usableOffcuts[0] || null;
+  const primaryScrap = layout.scrapRects[0] || null;
 
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto px-margin pb-6 gap-space-md">
       {/* Panel Config & Spec Selector */}
       <section className="flex flex-col gap-space-sm bg-surface-container-low p-space-md rounded-3xl shadow-sm">
-        <div className="flex items-center justify-between gap-space-sm">
+        <div className="flex items-center justify-between gap-space-sm flex-wrap">
           <div className="flex items-center gap-space-xs">
             <span
               className="material-symbols-outlined text-primary text-[20px]"
@@ -96,16 +402,29 @@ export const OptimizadorScreen: React.FC = () => {
               Configuración de Placa
             </span>
           </div>
-          <button
-            type="button"
-            onClick={handleCycleKerf}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface text-label-md font-label-md active:scale-95 transition-transform"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#3d07d9] animate-pulse"></span>
-            <span>
-              Sierra: <strong className="text-primary font-bold">{kerfMm.toFixed(1)} mm</strong>
-            </span>
-          </button>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleStartBlankOrder}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-tertiary-container/40 hover:bg-tertiary-container text-tertiary hover:text-on-tertiary-container text-label-md font-semibold active:scale-95 transition-all"
+              title="Cargar placa entera virgen sin cortes"
+            >
+              <span className="material-symbols-outlined text-[15px]">restart_alt</span>
+              <span>Iniciar Nueva Orden (Placa Limpia)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCycleKerf}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface text-label-md font-label-md active:scale-95 transition-transform"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[#3d07d9]"></span>
+              <span>
+                Sierra: <strong className="text-primary font-bold">{kerfMm.toFixed(1)} mm</strong>
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Active Board Card */}
@@ -167,7 +486,11 @@ export const OptimizadorScreen: React.FC = () => {
             </h2>
           </div>
           <span className="px-2.5 py-0.5 rounded-full bg-surface-container text-primary font-label-md text-label-md font-semibold">
-            Nivel Óptimo
+            {cuts.length === 0
+              ? 'Placa Virgen (100% Libre)'
+              : layout.yieldPercent >= 75
+              ? 'Nivel Óptimo'
+              : 'En Configuración'}
           </span>
         </div>
 
@@ -175,7 +498,6 @@ export const OptimizadorScreen: React.FC = () => {
           {/* Gauge SVG */}
           <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-              {/* Background ring */}
               <circle
                 className="text-surface-container"
                 cx="50"
@@ -185,36 +507,37 @@ export const OptimizadorScreen: React.FC = () => {
                 stroke="currentColor"
                 strokeWidth="9"
               />
-              {/* Progress ring: 88.4% of 251.32 = 222.16 */}
               <circle
-                className="text-[#3d07d9] transition-all duration-700 ease-out"
+                className="text-[#3d07d9] transition-all duration-500 ease-out"
                 cx="50"
                 cy="50"
                 fill="none"
                 r="40"
                 stroke="currentColor"
                 strokeDasharray="251.32"
-                strokeDashoffset={ringOffset}
+                strokeDashoffset={isRecomputing ? 251.32 : calculatedOffset}
                 strokeLinecap="round"
                 strokeWidth="9"
               />
-              {/* Secondary Kerf Scrap ring */}
-              <circle
-                className="text-tertiary"
-                cx="50"
-                cy="50"
-                fill="none"
-                opacity="0.8"
-                r="40"
-                stroke="currentColor"
-                strokeDasharray="251.32"
-                strokeDashoffset="242.0"
-                strokeWidth="9"
-              />
+              {cuts.length > 0 && (
+                <circle
+                  className="text-tertiary"
+                  cx="50"
+                  cy="50"
+                  fill="none"
+                  opacity="0.8"
+                  r="40"
+                  stroke="currentColor"
+                  strokeDasharray="251.32"
+                  strokeDashoffset="242.0"
+                  strokeWidth="9"
+                />
+              )}
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="font-headline-lg-mobile text-headline-lg-mobile font-bold text-on-surface tracking-tight">
-                88.4<span className="text-title-sm font-normal text-primary">%</span>
+                {layout.yieldPercent.toFixed(1)}
+                <span className="text-title-sm font-normal text-primary">%</span>
               </span>
               <span className="font-telemetry-unit text-telemetry-unit uppercase tracking-widest text-on-surface-variant -mt-1">
                 Yield Total
@@ -229,24 +552,32 @@ export const OptimizadorScreen: React.FC = () => {
                 Área Útil
               </span>
               <span className="font-telemetry-num text-telemetry-num text-primary font-bold mt-0.5">
-                4.45{' '}
+                {(layout.usedAreaMm2 / 1_000_000).toFixed(2)}{' '}
                 <span className="text-label-md text-on-surface-variant font-normal">m²</span>
               </span>
               <span className="font-label-md text-[10px] text-on-surface-variant leading-tight">
-                4,451,200 mm²
+                {layout.usedAreaMm2.toLocaleString('es-AR')} mm²
               </span>
             </div>
 
             <div className="bg-surface-container p-2.5 rounded-2xl flex flex-col">
               <span className="font-telemetry-unit text-telemetry-unit uppercase text-on-surface-variant font-medium">
-                Desperdicio
+                {cuts.length === 0 ? 'Disponible' : 'Desperdicio'}
               </span>
-              <span className="font-telemetry-num text-telemetry-num text-error font-bold mt-0.5">
-                0.58{' '}
+              <span
+                className={`font-telemetry-num text-telemetry-num font-bold mt-0.5 ${
+                  cuts.length === 0 ? 'text-on-surface' : 'text-error'
+                }`}
+              >
+                {(layout.wasteAreaMm2 / 1_000_000).toFixed(2)}{' '}
                 <span className="text-label-md text-on-surface-variant font-normal">m²</span>
               </span>
-              <span className="font-label-md text-[10px] text-error font-medium leading-tight">
-                11.6% del panel
+              <span
+                className={`font-label-md text-[10px] font-medium leading-tight ${
+                  cuts.length === 0 ? 'text-on-surface-variant' : 'text-error'
+                }`}
+              >
+                {(100 - layout.yieldPercent).toFixed(1)}% del panel
               </span>
             </div>
 
@@ -255,11 +586,15 @@ export const OptimizadorScreen: React.FC = () => {
                 Cortes
               </span>
               <span className="font-telemetry-num text-telemetry-num text-on-surface font-bold mt-0.5">
-                14{' '}
+                {layout.placed.length}{' '}
                 <span className="text-label-md text-on-surface-variant font-normal">uds.</span>
               </span>
               <span className="font-label-md text-[10px] text-tertiary font-medium leading-tight">
-                100% ubicados
+                {layout.totalRequested === 0
+                  ? 'Placa sin cortes'
+                  : layout.unplacedCount === 0
+                  ? '100% ubicados'
+                  : `${layout.unplacedCount} exceden placa`}
               </span>
             </div>
 
@@ -268,7 +603,7 @@ export const OptimizadorScreen: React.FC = () => {
                 Sobrantes
               </span>
               <span className="font-telemetry-num text-telemetry-num text-tertiary font-bold mt-0.5">
-                2{' '}
+                {cuts.length === 0 ? 0 : layout.usableOffcuts.length}{' '}
                 <span className="text-label-md text-on-surface-variant font-normal">retazos</span>
               </span>
               <span className="font-label-md text-[10px] text-on-surface-variant font-normal leading-tight">
@@ -311,28 +646,28 @@ export const OptimizadorScreen: React.FC = () => {
         <div className="flex items-center justify-between px-1 text-on-surface-variant font-label-md text-label-md">
           <span className="flex items-center gap-1">
             <span className="material-symbols-outlined text-[14px]">width</span>
-            Largo: 2750 mm
+            Largo: {currentBoard.lengthMm} mm
           </span>
           <span className="flex items-center gap-1">
             <span className="material-symbols-outlined text-[14px]">height</span>
-            Ancho: 1830 mm
+            Ancho: {currentBoard.widthMm} mm
           </span>
         </div>
 
         {/* CAD Visualizer Frame */}
         <div className="relative w-full rounded-2xl bg-surface-container-lowest p-2 shadow-inner overflow-hidden select-none">
-          {/* Architectural Dimension Overlays: Top ruler */}
+          {/* Top ruler */}
           <div className="w-full flex items-center justify-between px-2 mb-1.5 text-primary text-[10px] font-label-md">
             <div className="h-1.5 w-1.5 border-l border-t border-primary/50"></div>
             <div className="flex-1 flex items-center justify-center gap-2">
               <div className="h-[1px] flex-1 bg-primary/30"></div>
-              <span className="font-bold tracking-wider">2750 mm</span>
+              <span className="font-bold tracking-wider">{currentBoard.lengthMm} mm</span>
               <div className="h-[1px] flex-1 bg-primary/30"></div>
             </div>
             <div className="h-1.5 w-1.5 border-r border-t border-primary/50"></div>
           </div>
 
-          {/* Blueprint Sheet (Simulating 2750x1830 ratio ~ 1.503:1) */}
+          {/* Blueprint Sheet (2750x1830 ratio) */}
           <div
             className="relative w-full aspect-[16/10.6] rounded-xl bg-surface-container-high overflow-hidden shadow-md transition-transform duration-300"
             style={{ transform: `scale(${zoomScale})` }}
@@ -347,224 +682,137 @@ export const OptimizadorScreen: React.FC = () => {
               }}
             />
 
-            {/* Saw Kerf Guides Overlay when active */}
-            {showSawGuides && (
-              <div className="absolute inset-0 pointer-events-none z-20">
-                <div className="absolute top-[32.7%] left-0 w-[43.6%] border-t-2 border-dashed border-tertiary/80" />
-                <div className="absolute top-0 left-[43.6%] h-full border-l-2 border-dashed border-tertiary/80" />
-                <div className="absolute top-0 left-[58.1%] h-full border-l-2 border-dashed border-tertiary/80" />
-                <div className="absolute top-[68%] right-0 w-[41.9%] border-t-2 border-dashed border-error/80" />
+            {/* Virgin Board Empty State */}
+            {cuts.length === 0 ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                <div className="w-12 h-12 rounded-full bg-surface-container-lowest/70 flex items-center justify-center text-primary mb-2">
+                  <span className="material-symbols-outlined text-[24px]">crop_free</span>
+                </div>
+                <span className="font-title-sm text-body-lg font-bold text-on-surface">
+                  Placa Entera Virgen ({currentBoard.lengthMm} × {currentBoard.widthMm} mm)
+                </span>
+                <span className="font-label-md text-label-md text-on-surface-variant mt-0.5 max-w-xs">
+                  Sin cortes asignados. Ingresa medidas manualmente debajo para ubicar las piezas en
+                  el plano.
+                </span>
               </div>
+            ) : (
+              <>
+                {/* Dynamically Placed Pieces */}
+                {layout.placed.map((piece) => {
+                  const leftPct = (piece.xMm / currentBoard.lengthMm) * 100;
+                  const topPct = (piece.yMm / currentBoard.widthMm) * 100;
+                  const widthPct = (piece.lengthMm / currentBoard.lengthMm) * 100;
+                  const heightPct = (piece.widthMm / currentBoard.widthMm) * 100;
+                  const isSelected = selectedCutId === piece.cutId;
+                  const isCompact = widthPct < 16 || heightPct < 14;
+
+                  return (
+                    <div
+                      key={`${piece.cutId}-${piece.instanceIndex}`}
+                      onClick={() => setSelectedCutId(piece.cutId)}
+                      style={{
+                        left: `${leftPct}%`,
+                        top: `${topPct}%`,
+                        width: `${widthPct}%`,
+                        height: `${heightPct}%`,
+                      }}
+                      className="absolute p-0.5 transition-all duration-300"
+                    >
+                      <div
+                        className={`w-full h-full rounded-lg transition-colors flex flex-col justify-between p-1 cursor-pointer relative overflow-hidden ${
+                          piece.isPrimary
+                            ? 'bg-[#3d07d9]/25 hover:bg-[#3d07d9]/40'
+                            : 'bg-surface-container-highest hover:bg-[#3d07d9]/30'
+                        } ${isSelected ? 'ring-1 ring-primary' : 'border border-white/10'} ${
+                          showSawGuides ? 'outline-1 outline-dashed outline-tertiary/70' : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-0.5">
+                          <span
+                            className={`rounded-full font-label-md font-bold flex items-center justify-center shrink-0 ${
+                              isCompact ? 'w-3.5 h-3.5 text-[8px]' : 'w-5 h-5 text-[10px]'
+                            } ${
+                              piece.isPrimary
+                                ? 'bg-[#3d07d9] text-[#b3abff]'
+                                : 'bg-surface-variant text-on-surface'
+                            }`}
+                          >
+                            #{piece.instanceIndex}
+                          </span>
+                          {showLabels && !isCompact && (
+                            <span className="text-[9px] font-mono text-primary font-semibold truncate">
+                              {piece.lengthMm}×{piece.widthMm}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between gap-1 min-w-0">
+                          <span
+                            className={`font-label-md truncate ${
+                              isCompact ? 'text-[8px]' : 'text-[10px] font-semibold'
+                            } ${piece.isPrimary ? 'text-primary' : 'text-on-surface'}`}
+                          >
+                            {piece.name}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Usable Offcuts (>0.2m2) */}
+                {layout.usableOffcuts.slice(0, 2).map((offcut, idx) => {
+                  const leftPct = (offcut.x / currentBoard.lengthMm) * 100;
+                  const topPct = (offcut.y / currentBoard.widthMm) * 100;
+                  const widthPct = (offcut.w / currentBoard.lengthMm) * 100;
+                  const heightPct = (offcut.h / currentBoard.widthMm) * 100;
+                  const areaM2 = ((offcut.w * offcut.h) / 1_000_000).toFixed(2);
+
+                  return (
+                    <div
+                      key={`offcut-${idx}`}
+                      style={{
+                        left: `${leftPct}%`,
+                        top: `${topPct}%`,
+                        width: `${widthPct}%`,
+                        height: `${heightPct}%`,
+                      }}
+                      className="absolute p-0.5 pointer-events-none"
+                    >
+                      <div className="w-full h-full rounded-lg bg-[#881e00]/20 border border-tertiary-fixed-dim/30 flex flex-col justify-between p-1.5 shadow-inner overflow-hidden">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-tertiary/20 text-tertiary font-label-md text-[8px] font-bold truncate">
+                            RETAZO {String.fromCharCode(65 + idx)} • STOCK
+                          </span>
+                          <span className="font-label-md text-[8px] text-tertiary font-semibold shrink-0">
+                            {areaM2} m²
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-label-md text-[10px] font-bold text-on-surface truncate">
+                            {Math.round(offcut.w)} × {Math.round(offcut.h)} mm
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
             )}
-
-            {/* Piece 1: Tapa Mesa (1200x600) */}
-            <div
-              onClick={() => setSelectedPiece(1)}
-              className="absolute top-0 left-0 w-[43.6%] h-[32.7%] p-1"
-            >
-              <div
-                className={`w-full h-full rounded-xl bg-[#3d07d9]/25 hover:bg-[#3d07d9]/40 transition-colors flex flex-col justify-between p-1.5 cursor-pointer shadow-sm relative ${
-                  selectedPiece === 1 ? 'ring-1 ring-primary/60' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="w-5 h-5 rounded-full bg-[#3d07d9] text-[#b3abff] font-label-md text-[10px] font-bold flex items-center justify-center">
-                    #1
-                  </span>
-                  <span className="material-symbols-outlined text-primary text-[14px]">
-                    crop_free
-                  </span>
-                </div>
-                {showLabels && (
-                  <span className="text-[9px] font-mono text-on-surface/90">1200×600</span>
-                )}
-                <div className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  <span className="font-label-md text-[10px] text-primary truncate font-bold">
-                    Tapa Mesa
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Piece 2: Lateral Izquierdo (720x450) */}
-            <div
-              onClick={() => setSelectedPiece(2)}
-              className="absolute top-[32.7%] left-0 w-[26.1%] h-[24.5%] p-1"
-            >
-              <div
-                className={`w-full h-full rounded-xl bg-[#3d07d9]/20 hover:bg-[#3d07d9]/35 transition-colors flex flex-col justify-between p-1.5 cursor-pointer relative ${
-                  selectedPiece === 2 ? 'ring-1 ring-primary/60' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="w-5 h-5 rounded-full bg-[#3d07d9] text-[#b3abff] font-label-md text-[10px] font-bold flex items-center justify-center">
-                    #2
-                  </span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
-                </div>
-                {showLabels && (
-                  <span className="text-[8px] font-mono text-on-surface/80">720×450</span>
-                )}
-                <span className="font-label-md text-[10px] text-on-surface truncate">
-                  Lateral Izq
-                </span>
-              </div>
-            </div>
-
-            {/* Piece 3: Lateral Derecho (720x450) */}
-            <div
-              onClick={() => setSelectedPiece(3)}
-              className="absolute top-[57.2%] left-0 w-[26.1%] h-[24.5%] p-1"
-            >
-              <div
-                className={`w-full h-full rounded-xl bg-[#3d07d9]/20 hover:bg-[#3d07d9]/35 transition-colors flex flex-col justify-between p-1.5 cursor-pointer relative ${
-                  selectedPiece === 3 ? 'ring-1 ring-primary/60' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="w-5 h-5 rounded-full bg-[#3d07d9] text-[#b3abff] font-label-md text-[10px] font-bold flex items-center justify-center">
-                    #3
-                  </span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
-                </div>
-                {showLabels && (
-                  <span className="text-[8px] font-mono text-on-surface/80">720×450</span>
-                )}
-                <span className="font-label-md text-[10px] text-on-surface truncate">
-                  Lateral Der
-                </span>
-              </div>
-            </div>
-
-            {/* Piece 4, 5, 6: Estantes (560x420 each) */}
-            <div
-              onClick={() => setSelectedPiece(4)}
-              className="absolute top-[32.7%] left-[26.1%] w-[20.3%] h-[22.9%] p-1"
-            >
-              <div className="w-full h-full rounded-xl bg-surface-container-highest hover:bg-[#3d07d9]/30 transition-colors flex flex-col justify-between p-1 cursor-pointer">
-                <span className="w-4 h-4 rounded-full bg-surface-variant text-on-surface font-label-md text-[9px] font-bold flex items-center justify-center">
-                  #4
-                </span>
-                {showLabels && <span className="text-[8px] font-mono">560×420</span>}
-                <span className="font-label-md text-[9px] text-on-surface truncate">Est. 1</span>
-              </div>
-            </div>
-            <div
-              onClick={() => setSelectedPiece(5)}
-              className="absolute top-[55.6%] left-[26.1%] w-[20.3%] h-[22.9%] p-1"
-            >
-              <div className="w-full h-full rounded-xl bg-surface-container-highest hover:bg-[#3d07d9]/30 transition-colors flex flex-col justify-between p-1 cursor-pointer">
-                <span className="w-4 h-4 rounded-full bg-surface-variant text-on-surface font-label-md text-[9px] font-bold flex items-center justify-center">
-                  #5
-                </span>
-                {showLabels && <span className="text-[8px] font-mono">560×420</span>}
-                <span className="font-label-md text-[9px] text-on-surface truncate">Est. 2</span>
-              </div>
-            </div>
-            <div
-              onClick={() => setSelectedPiece(6)}
-              className="absolute top-[78.5%] left-[26.1%] w-[20.3%] h-[21.5%] p-1"
-            >
-              <div className="w-full h-full rounded-xl bg-surface-container-highest hover:bg-[#3d07d9]/30 transition-colors flex flex-col justify-between p-1 cursor-pointer">
-                <span className="w-4 h-4 rounded-full bg-surface-variant text-on-surface font-label-md text-[9px] font-bold flex items-center justify-center">
-                  #6
-                </span>
-                {showLabels && <span className="text-[8px] font-mono">560×420</span>}
-                <span className="font-label-md text-[9px] text-on-surface truncate">Est. 3</span>
-              </div>
-            </div>
-
-            {/* Piece 7, 8, 9, 10: Drawer Fronts Column (400x180) */}
-            <div className="absolute top-0 left-[43.6%] w-[14.5%] h-[40.0%] p-1 flex flex-col gap-0.5">
-              {['A', 'B', 'C', 'D'].map((letter, idx) => (
-                <div
-                  key={letter}
-                  onClick={() => setSelectedPiece(7 + idx)}
-                  className="flex-1 rounded-lg bg-surface-variant/90 p-1 flex items-center justify-between cursor-pointer hover:bg-[#3d07d9]/30"
-                >
-                  <span className="font-label-md text-[8px] text-primary">#{7 + idx}</span>
-                  <span className="font-label-md text-[8px] text-on-surface">Caj. {letter}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Piece 11, 12, 13, 14: Minor Parts Cluster */}
-            <div className="absolute top-[40.0%] left-[46.4%] w-[11.7%] h-[60.0%] p-1 flex flex-col gap-1">
-              {[
-                { num: 11, name: 'Zócalo' },
-                { num: 12, name: 'Fondo A' },
-                { num: 13, name: 'Fondo B' },
-                { num: 14, name: 'Listón' },
-              ].map((part) => (
-                <div
-                  key={part.num}
-                  onClick={() => setSelectedPiece(part.num)}
-                  className="flex-1 rounded-lg bg-surface-variant p-1 flex flex-col justify-center items-center cursor-pointer hover:bg-[#3d07d9]/30"
-                >
-                  <span className="font-label-md text-[8px] text-on-surface-variant">
-                    #{part.num}
-                  </span>
-                  <span className="font-label-md text-[7px] text-on-surface">{part.name}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* REUTILIZABLE 1 (Retazo A: 1350x410) */}
-            <div className="absolute top-0 right-0 w-[41.9%] h-[68%] p-1">
-              <div className="w-full h-full rounded-xl bg-[#881e00]/20 border border-tertiary-fixed-dim/30 flex flex-col justify-between p-2 shadow-inner">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-tertiary/20 text-tertiary font-label-md text-[9px] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-ping"></span>
-                    RETAZO A • APTO STOCK
-                  </span>
-                  <span className="font-label-md text-[9px] text-tertiary font-semibold">
-                    0.55 m²
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-label-md text-[11px] font-bold text-on-surface">
-                    1350 × 410 mm
-                  </span>
-                  <span className="font-label-md text-[9px] text-on-surface-variant">
-                    Reingresa a depósito
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* SCRAP (Retazo B & Residual Kerf Band: lower right) */}
-            <div className="absolute bottom-0 right-0 w-[41.9%] h-[32%] p-1">
-              <div className="w-full h-full rounded-xl bg-error-container/25 flex flex-col justify-between p-2 shadow-inner">
-                <div className="flex items-center justify-between">
-                  <span className="px-1.5 py-0.5 rounded-full bg-error-container text-error font-label-md text-[9px] font-bold uppercase">
-                    Scrap / Merma
-                  </span>
-                  <span className="font-label-md text-[9px] text-error font-semibold">0.03 m²</span>
-                </div>
-                <span className="font-label-md text-[10px] text-on-surface-variant truncate">
-                  820 × 190 mm (No recuperable)
-                </span>
-              </div>
-            </div>
-
-            {/* Bottom Left Scrap stripe */}
-            <div className="absolute bottom-0 left-0 w-[26.1%] h-[18.3%] p-1">
-              <div className="w-full h-full rounded-xl bg-error-container/20 flex items-center justify-center">
-                <span className="font-label-md text-[8px] text-error uppercase font-medium">
-                  Sobrante Menor
-                </span>
-              </div>
-            </div>
           </div>
 
-          {/* Architectural Dimension Overlays: Bottom Height indicator */}
+          {/* Bottom Height indicator */}
           <div className="w-full flex items-center justify-between px-2 mt-1.5 text-on-surface-variant text-[10px] font-label-md">
             <span>
               Grosor Veta:{' '}
-              {isVerticalGrain ? 'Paralelo al lado de 1830 mm' : 'Paralelo al lado de 2750 mm'}
+              {isVerticalGrain
+                ? `Paralelo al lado de ${currentBoard.widthMm} mm`
+                : `Paralelo al lado de ${currentBoard.lengthMm} mm`}
             </span>
-            <span className="text-tertiary font-medium">14/14 Cortes Asignados</span>
+            <span className="text-tertiary font-medium">
+              {layout.placed.length}/{layout.totalRequested} Cortes Asignados
+            </span>
           </div>
         </div>
 
@@ -645,11 +893,10 @@ export const OptimizadorScreen: React.FC = () => {
         </div>
       </section>
 
-      {/* Detailed Breakdown: Two Inspectable Blocks */}
+      {/* Detailed Breakdown: Assigned Cut List with Dynamic Add/Remove */}
       <div className="flex flex-col gap-space-md">
-        {/* Block 1: Assigned Cut List */}
         <section className="bg-surface-container-low p-space-md rounded-3xl shadow-sm flex flex-col gap-space-sm">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-space-xs">
               <span
                 className="material-symbols-outlined text-primary text-[20px]"
@@ -661,161 +908,263 @@ export const OptimizadorScreen: React.FC = () => {
                 Lista de Cortes Asignados
               </h2>
             </div>
-            <span className="px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md font-medium">
-              10 Tipos • 14 Piezas
-            </span>
+
+            <div className="flex items-center gap-1.5">
+              <span className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md font-medium">
+                {cuts.length} Tipos • {layout.totalRequested} Piezas
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="px-3 py-1 rounded-full bg-primary text-on-primary font-label-md text-label-md font-semibold flex items-center gap-1 active:scale-95 transition-all"
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {showAddForm ? 'expand_less' : 'add'}
+                </span>
+                <span>{showAddForm ? 'Cerrar' : '+ Agregar Corte'}</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            {/* Item 1: Tapa Mesa */}
-            <div
-              onClick={() => setSelectedPiece(1)}
-              className={`p-3 rounded-2xl bg-surface-container flex items-center justify-between gap-space-sm hover:bg-surface-container-high transition-colors cursor-pointer ${
-                selectedPiece === 1 ? 'ring-1 ring-primary/40' : ''
-              }`}
+          {/* Interactive Form to Add a New Cut */}
+          {showAddForm && (
+            <form
+              onSubmit={handleAddCut}
+              className="p-3.5 rounded-2xl bg-surface-container border border-primary/30 flex flex-col gap-3 my-1"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="w-6 h-6 rounded-full bg-[#3d07d9] text-[#b3abff] font-label-md text-[11px] font-bold flex items-center justify-center shrink-0">
-                  1
+              <div className="flex items-center justify-between">
+                <span className="font-label-md text-label-md text-primary font-semibold uppercase tracking-wider">
+                  Nuevo Corte a Medida
                 </span>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-title-sm text-body-lg text-on-surface font-semibold truncate leading-tight">
-                    Tapa Mesa Principal
-                  </span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="font-label-md text-label-md text-primary font-bold">
-                      1200 × 600 mm
-                    </span>
-                    <span className="text-on-surface-variant font-label-md text-[10px]">
-                      • Cantos 4L (2mm)
-                    </span>
-                  </div>
+                {cuts.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={handleRestoreDemoOrder}
+                    className="text-[11px] text-secondary underline hover:text-on-surface"
+                  >
+                    Cargar orden de ejemplo
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-on-surface-variant font-medium">
+                    Nombre / Identificador de Pieza
+                  </label>
+                  <input
+                    type="text"
+                    value={newCutName}
+                    onChange={(e) => setNewCutName(e.target.value)}
+                    placeholder="Ej: Puerta Alacena / Estante"
+                    className="h-10 px-3 rounded-xl bg-surface-container-high text-on-surface text-body-md focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-on-surface-variant font-medium">
+                    Tapacantos
+                  </label>
+                  <select
+                    value={newCutEdge}
+                    onChange={(e) => setNewCutEdge(e.target.value)}
+                    className="h-10 px-3 rounded-xl bg-surface-container-high text-on-surface text-body-md focus:outline-none"
+                  >
+                    <option value="Cantos 4L (2mm)">Cantos 4L (2mm)</option>
+                    <option value="Cantos 2L Frontal">Cantos 2L Frontal</option>
+                    <option value="Canto 1L">Canto 1L</option>
+                    <option value="Sin canto">Sin canto</option>
+                  </select>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-surface-container-high text-on-surface-variant font-label-md text-[11px]">
-                  <span className="material-symbols-outlined text-[13px] text-primary">
-                    straighten
-                  </span>
-                  ×1
-                </span>
-                <span
-                  className="material-symbols-outlined text-tertiary text-[18px]"
-                  title="Veta respetada"
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-on-surface-variant font-medium">
+                    Largo (mm)
+                  </label>
+                  <input
+                    type="number"
+                    min={50}
+                    max={currentBoard.lengthMm}
+                    value={newCutLength}
+                    onChange={(e) => setNewCutLength(e.target.value)}
+                    className="h-10 px-3 rounded-xl bg-surface-container-high text-on-surface font-mono text-body-md focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-on-surface-variant font-medium">
+                    Ancho (mm)
+                  </label>
+                  <input
+                    type="number"
+                    min={50}
+                    max={currentBoard.widthMm}
+                    value={newCutWidth}
+                    onChange={(e) => setNewCutWidth(e.target.value)}
+                    className="h-10 px-3 rounded-xl bg-surface-container-high text-on-surface font-mono text-body-md focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-on-surface-variant font-medium">
+                    Cantidad
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={newCutQty}
+                    onChange={(e) => setNewCutQty(e.target.value)}
+                    className="h-10 px-3 rounded-xl bg-surface-container-high text-on-surface font-mono text-body-md focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <label className="inline-flex items-center gap-2 cursor-pointer text-label-md text-on-surface-variant">
+                  <input
+                    type="checkbox"
+                    checked={newCutGrain}
+                    onChange={(e) => setNewCutGrain(e.target.checked)}
+                    className="rounded accent-primary"
+                  />
+                  <span>Respetar sentido de veta</span>
+                </label>
+
+                <button
+                  type="submit"
+                  className="h-10 px-5 rounded-full bg-primary text-on-primary font-label-md font-semibold flex items-center gap-1.5 active:scale-95 transition-transform"
                 >
-                  waves
-                </span>
+                  <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                  <span>Insertar en Placa</span>
+                </button>
               </div>
-            </div>
+            </form>
+          )}
 
-            {/* Item 2: Laterales */}
-            <div
-              onClick={() => setSelectedPiece(2)}
-              className={`p-3 rounded-2xl bg-surface-container flex items-center justify-between gap-space-sm hover:bg-surface-container-high transition-colors cursor-pointer ${
-                selectedPiece === 2 ? 'ring-1 ring-primary/40' : ''
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="w-6 h-6 rounded-full bg-surface-container-high text-on-surface font-label-md text-[11px] font-bold flex items-center justify-center shrink-0">
-                  2
-                </span>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-title-sm text-body-lg text-on-surface font-semibold truncate leading-tight">
-                    Laterales de Módulo
-                  </span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="font-label-md text-label-md text-on-surface font-bold">
-                      720 × 450 mm
-                    </span>
-                    <span className="text-on-surface-variant font-label-md text-[10px]">
-                      • Cantos 2L Frontal
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-surface-container-high text-on-surface-variant font-label-md text-[11px]">
-                  <span className="material-symbols-outlined text-[13px] text-primary">
-                    straighten
-                  </span>
-                  ×2
-                </span>
-                <span className="material-symbols-outlined text-tertiary text-[18px]">waves</span>
+          {/* Cuts List */}
+          {cuts.length === 0 ? (
+            <div className="p-6 rounded-2xl bg-surface-container flex flex-col items-center justify-center text-center gap-2">
+              <span className="material-symbols-outlined text-on-surface-variant text-[28px]">
+                carpenter
+              </span>
+              <span className="font-title-sm text-body-lg text-on-surface font-semibold">
+                Orden de Corte en Blanco
+              </span>
+              <p className="text-label-md text-on-surface-variant max-w-sm">
+                La placa está 100% libre. Usa el formulario superior para ingresar cada corte
+                manualmente o restaura los cortes de demostración.
+              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(true)}
+                  className="px-4 py-2 rounded-full bg-primary text-on-primary font-label-md font-semibold"
+                >
+                  + Ingresar Primer Corte
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRestoreDemoOrder}
+                  className="px-4 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:text-on-surface font-label-md"
+                >
+                  Restaurar Demo
+                </button>
               </div>
             </div>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {cuts.map((cut, index) => {
+                const isSelected = selectedCutId === cut.id;
+                return (
+                  <div
+                    key={cut.id}
+                    onClick={() => setSelectedCutId(cut.id)}
+                    className={`p-3 rounded-2xl bg-surface-container flex items-center justify-between gap-space-sm hover:bg-surface-container-high transition-colors cursor-pointer ${
+                      isSelected ? 'ring-1 ring-primary/40' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        className={`w-6 h-6 rounded-full font-label-md text-[11px] font-bold flex items-center justify-center shrink-0 ${
+                          index === 0
+                            ? 'bg-[#3d07d9] text-[#b3abff]'
+                            : 'bg-surface-container-high text-on-surface'
+                        }`}
+                      >
+                        {index + 1}
+                      </span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-title-sm text-body-lg text-on-surface font-semibold truncate leading-tight">
+                          {cut.name}
+                        </span>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span
+                            className={`font-label-md text-label-md font-bold ${
+                              index === 0 ? 'text-primary' : 'text-on-surface'
+                            }`}
+                          >
+                            {cut.lengthMm} × {cut.widthMm} mm
+                          </span>
+                          <span className="text-on-surface-variant font-label-md text-[10px]">
+                            • {cut.edgeSpec}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-            {/* Item 3: Estantes */}
-            <div
-              onClick={() => setSelectedPiece(4)}
-              className={`p-3 rounded-2xl bg-surface-container flex items-center justify-between gap-space-sm hover:bg-surface-container-high transition-colors cursor-pointer ${
-                selectedPiece === 4 ? 'ring-1 ring-primary/40' : ''
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="w-6 h-6 rounded-full bg-surface-container-high text-on-surface font-label-md text-[11px] font-bold flex items-center justify-center shrink-0">
-                  3
-                </span>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-title-sm text-body-lg text-on-surface font-semibold truncate leading-tight">
-                    Estantes Regulables
-                  </span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="font-label-md text-label-md text-on-surface font-bold">
-                      560 × 420 mm
-                    </span>
-                    <span className="text-on-surface-variant font-label-md text-[10px]">
-                      • Canto 1L
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-surface-container-high text-on-surface-variant font-label-md text-[11px]">
-                  <span className="material-symbols-outlined text-[13px] text-primary">
-                    straighten
-                  </span>
-                  ×3
-                </span>
-                <span className="material-symbols-outlined text-tertiary text-[18px]">waves</span>
-              </div>
-            </div>
+                    <div
+                      className="flex items-center gap-1.5 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Quantity Stepper */}
+                      <div className="inline-flex items-center gap-1 bg-surface-container-high rounded-full p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateCutQty(cut.id, -1)}
+                          aria-label="Disminuir cantidad"
+                          className="w-6 h-6 rounded-full hover:bg-surface-bright text-on-surface-variant hover:text-on-surface flex items-center justify-center"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">remove</span>
+                        </button>
+                        <span className="px-1.5 font-label-md text-[11px] font-bold text-on-surface">
+                          ×{cut.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateCutQty(cut.id, 1)}
+                          aria-label="Aumentar cantidad"
+                          className="w-6 h-6 rounded-full hover:bg-surface-bright text-on-surface-variant hover:text-on-surface flex items-center justify-center"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">add</span>
+                        </button>
+                      </div>
 
-            {/* Item 4: Frentes de Cajón */}
-            <div
-              onClick={() => setSelectedPiece(7)}
-              className={`p-3 rounded-2xl bg-surface-container flex items-center justify-between gap-space-sm hover:bg-surface-container-high transition-colors cursor-pointer ${
-                selectedPiece === 7 ? 'ring-1 ring-primary/40' : ''
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="w-6 h-6 rounded-full bg-surface-container-high text-on-surface font-label-md text-[11px] font-bold flex items-center justify-center shrink-0">
-                  4
-                </span>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-title-sm text-body-lg text-on-surface font-semibold truncate leading-tight">
-                    Frentes de Cajón Soft
-                  </span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="font-label-md text-label-md text-on-surface font-bold">
-                      400 × 180 mm
-                    </span>
-                    <span className="text-on-surface-variant font-label-md text-[10px]">
-                      • Cantos 4L (Veta Continua)
-                    </span>
+                      {cut.respectGrain && (
+                        <span
+                          className="material-symbols-outlined text-tertiary text-[18px]"
+                          title="Veta respetada"
+                        >
+                          waves
+                        </span>
+                      )}
+
+                      {/* Delete Cut Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCut(cut.id, cut.name)}
+                        aria-label={`Eliminar corte ${cut.name}`}
+                        className="w-8 h-8 rounded-full bg-surface-container-high hover:bg-error-container text-on-surface-variant hover:text-error flex items-center justify-center transition-colors"
+                        title="Eliminar corte"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-surface-container-high text-on-surface-variant font-label-md text-[11px]">
-                  <span className="material-symbols-outlined text-[13px] text-primary">
-                    straighten
-                  </span>
-                  ×4
-                </span>
-                <span className="material-symbols-outlined text-tertiary text-[18px]">waves</span>
-              </div>
+                );
+              })}
             </div>
-          </div>
+          )}
         </section>
 
         {/* Block 2: Sobrantes y Retazos Estimados */}
@@ -828,74 +1177,90 @@ export const OptimizadorScreen: React.FC = () => {
               </h2>
             </div>
             <span className="font-label-md text-label-md text-on-surface-variant">
-              0.58 m² Merma Total
+              {(layout.wasteAreaMm2 / 1_000_000).toFixed(2)} m² Restante Total
             </span>
           </div>
 
           <div className="grid grid-cols-1 gap-space-xs">
             {/* Retazo A: Reutilizable */}
-            <div className="p-3 rounded-2xl bg-surface-container flex items-center justify-between gap-space-sm">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-[#881e00]/30 text-tertiary flex items-center justify-center shrink-0 font-bold text-title-sm">
-                  A
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-title-sm text-body-lg text-on-surface font-semibold truncate leading-tight">
-                      Retazo Apto Stock
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded bg-tertiary/20 text-tertiary font-label-md text-[9px] font-bold">
-                      ALMACENAR
+            {primaryOffcut ? (
+              <div className="p-3 rounded-2xl bg-surface-container flex items-center justify-between gap-space-sm">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-[#881e00]/30 text-tertiary flex items-center justify-center shrink-0 font-bold text-title-sm">
+                    A
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-title-sm text-body-lg text-on-surface font-semibold truncate leading-tight">
+                        Retazo Apto Stock
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded bg-tertiary/20 text-tertiary font-label-md text-[9px] font-bold">
+                        ALMACENAR
+                      </span>
+                    </div>
+                    <span className="font-label-md text-label-md text-on-surface-variant mt-0.5">
+                      {Math.round(primaryOffcut.w)} × {Math.round(primaryOffcut.h)} mm •{' '}
+                      {((primaryOffcut.w * primaryOffcut.h) / 1_000_000).toFixed(2)} m² (
+                      {currentBoard.grainNote})
                     </span>
                   </div>
-                  <span className="font-label-md text-label-md text-on-surface-variant mt-0.5">
-                    1350 × 410 mm • 0.55 m² ({currentBoard.grainNote})
-                  </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRetazoStocked(true);
+                    triggerToast(
+                      `Retazo A (${Math.round(primaryOffcut.w)}×${Math.round(
+                        primaryOffcut.h
+                      )}mm) ingresado a stock`
+                    );
+                  }}
+                  className={`px-3 h-8 rounded-full text-label-md font-label-md font-medium shrink-0 flex items-center gap-1 active:scale-95 transition-all ${
+                    retazoStocked
+                      ? 'bg-primary text-on-primary'
+                      : 'bg-surface-container-high text-primary hover:text-on-primary hover:bg-primary'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[15px]">
+                    {retazoStocked ? 'check' : 'inventory'}
+                  </span>
+                  <span>{retazoStocked ? 'En Stock' : 'Alta Stock'}</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setRetazoStocked(true);
-                  triggerToast('Retazo A (1350×410mm) ingresado a stock de recortes');
-                }}
-                className={`px-3 h-8 rounded-full text-label-md font-label-md font-medium shrink-0 flex items-center gap-1 active:scale-95 transition-all ${
-                  retazoStocked
-                    ? 'bg-primary text-on-primary'
-                    : 'bg-surface-container-high text-primary hover:text-on-primary hover:bg-primary'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[15px]">
-                  {retazoStocked ? 'check' : 'inventory'}
-                </span>
-                <span>{retazoStocked ? 'En Stock' : 'Alta Stock'}</span>
-              </button>
-            </div>
+            ) : (
+              <div className="p-3 rounded-2xl bg-surface-container text-on-surface-variant text-label-md">
+                Sin retazos mayores a 0.20 m² disponibles.
+              </div>
+            )}
 
             {/* Retazo B: Scrap / Descarte */}
-            <div className="p-3 rounded-2xl bg-surface-container flex items-center justify-between gap-space-sm opacity-80">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-error-container/20 text-error flex items-center justify-center shrink-0 font-bold text-title-sm">
-                  B
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-title-sm text-body-lg text-on-surface font-semibold truncate leading-tight">
-                      Descarte Directo (Scrap)
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded bg-error-container text-error font-label-md text-[9px] font-bold">
-                      MERMA
+            {primaryScrap && (
+              <div className="p-3 rounded-2xl bg-surface-container flex items-center justify-between gap-space-sm opacity-80">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-error-container/20 text-error flex items-center justify-center shrink-0 font-bold text-title-sm">
+                    B
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-title-sm text-body-lg text-on-surface font-semibold truncate leading-tight">
+                        Descarte Directo (Scrap)
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded bg-error-container text-error font-label-md text-[9px] font-bold">
+                        MERMA
+                      </span>
+                    </div>
+                    <span className="font-label-md text-label-md text-on-surface-variant mt-0.5">
+                      {Math.round(primaryScrap.w)} × {Math.round(primaryScrap.h)} mm •{' '}
+                      {((primaryScrap.w * primaryScrap.h) / 1_000_000).toFixed(2)} m² (Menor a
+                      umbral útil)
                     </span>
                   </div>
-                  <span className="font-label-md text-label-md text-on-surface-variant mt-0.5">
-                    820 × 190 mm • 0.03 m² (Menor a umbral útil)
-                  </span>
                 </div>
+                <span className="text-on-surface-variant font-label-md text-[11px] shrink-0">
+                  Reciclaje Taller
+                </span>
               </div>
-              <span className="text-on-surface-variant font-label-md text-[11px] shrink-0">
-                Reciclaje Taller
-              </span>
-            </div>
+            )}
           </div>
         </section>
       </div>
@@ -904,7 +1269,7 @@ export const OptimizadorScreen: React.FC = () => {
       <section className="mt-space-xs flex flex-col gap-space-xs">
         <button
           type="button"
-          onClick={handleExportPdf}
+          onClick={() => triggerToast('Plano de Corte CAD (.PDF) generado y descargado')}
           className="w-full h-14 rounded-full bg-surface-container-high text-on-surface font-headline-md text-body-lg font-semibold flex items-center justify-center gap-2 shadow-md hover:bg-surface-variant active:scale-[0.98] transition-all"
         >
           <span className="material-symbols-outlined text-primary text-[22px]">picture_as_pdf</span>
@@ -948,7 +1313,7 @@ export const OptimizadorScreen: React.FC = () => {
                 </span>
                 <h3 className="font-title-sm text-title-sm font-bold text-on-surface">
                   {activeModal === 'qr'
-                    ? 'Etiquetas Zebra QR (14 Piezas)'
+                    ? `Etiquetas Zebra QR (${layout.placed.length} Piezas)`
                     : 'Programa G-Code CNC (Guillotina)'}
                 </h3>
               </div>
@@ -962,46 +1327,51 @@ export const OptimizadorScreen: React.FC = () => {
             </div>
 
             {activeModal === 'qr' ? (
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: '#1', name: 'Tapa Mesa Principal', dim: '1200×600mm', edge: '4L 2mm' },
-                  { id: '#2', name: 'Lateral Módulo Izq', dim: '720×450mm', edge: '2L Frontal' },
-                  { id: '#3', name: 'Lateral Módulo Der', dim: '720×450mm', edge: '2L Frontal' },
-                  { id: '#4', name: 'Estante Regulable 1', dim: '560×420mm', edge: '1L Frontal' },
-                ].map((label) => (
-                  <div
-                    key={label.id}
-                    className="p-3 rounded-2xl bg-surface-container flex flex-col gap-1 border border-outline-variant/20"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-label-md font-bold text-primary">{label.id}</span>
-                      <span className="material-symbols-outlined text-[18px] text-on-surface">
-                        qr_code_2
+              <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+                {layout.placed.length === 0 ? (
+                  <p className="col-span-2 text-center text-on-surface-variant py-4">
+                    No hay piezas ubicadas en la placa.
+                  </p>
+                ) : (
+                  layout.placed.map((p) => (
+                    <div
+                      key={p.instanceIndex}
+                      className="p-3 rounded-2xl bg-surface-container flex flex-col gap-1 border border-outline-variant/20"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-label-md font-bold text-primary">
+                          #{p.instanceIndex}
+                        </span>
+                        <span className="material-symbols-outlined text-[18px] text-on-surface">
+                          qr_code_2
+                        </span>
+                      </div>
+                      <span className="text-[12px] font-semibold text-on-surface truncate">
+                        {p.name}
+                      </span>
+                      <span className="text-[11px] font-mono text-on-surface-variant">
+                        {p.lengthMm}×{p.widthMm}mm • {p.edgeSpec}
                       </span>
                     </div>
-                    <span className="text-[12px] font-semibold text-on-surface truncate">
-                      {label.name}
-                    </span>
-                    <span className="text-[11px] font-mono text-on-surface-variant">
-                      {label.dim} • {label.edge}
-                    </span>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             ) : (
-              <pre className="p-3 rounded-2xl bg-surface-container-lowest text-[11px] font-mono text-primary overflow-x-auto leading-relaxed">
+              <pre className="p-3 rounded-2xl bg-surface-container-lowest text-[11px] font-mono text-primary overflow-x-auto leading-relaxed max-h-64">
                 {`; MUEBLES J&L - VILLA LUZURIAGA
-; PLACA: ${currentBoard.name.toUpperCase()} (2750x1830x18)
+; PLACA: ${currentBoard.name.toUpperCase()} (${currentBoard.lengthMm}x${currentBoard.widthMm}x18)
 ; SIERRA KERF: ${kerfMm.toFixed(1)} MM
 G21 G90 G40
 M03 S18000
-G00 X0.000 Y1226.800 Z15.000
-G01 Z-18.500 F1200
-G01 X1200.000 Y1226.800 F4200 ; CORTE #1 TAPA MESA
-G00 Z15.000
-G00 X720.000 Y0.000
-G01 Z-18.500 F1200
-G01 X720.000 Y1223.600 F4200 ; CORTES #2 #3 LATERALES
+${layout.placed
+  .slice(0, 8)
+  .map(
+    (p) =>
+      `G00 X${p.xMm.toFixed(1)} Y${p.yMm.toFixed(1)} Z15.0\nG01 Z-18.5 F1200\nG01 X${(
+        p.xMm + p.lengthMm
+      ).toFixed(1)} Y${(p.yMm + p.widthMm).toFixed(1)} F4200 ; #${p.instanceIndex} ${p.name}`
+  )
+  .join('\n')}
 M05
 M30`}
               </pre>
@@ -1012,7 +1382,7 @@ M30`}
               onClick={() => {
                 triggerToast(
                   activeModal === 'qr'
-                    ? 'Cola de 14 etiquetas enviada a impresora térmica'
+                    ? `Cola de ${layout.placed.length} etiquetas enviada a impresora térmica`
                     : 'Archivo .NC exportado para seccionadora CNC'
                 );
                 setActiveModal(null);

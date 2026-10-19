@@ -1,168 +1,563 @@
-import React, { useEffect, useState } from 'react';
-
-interface WoodTexture {
-  id: string;
-  shortName: string;
-  fullName: string;
-  tintHex: string;
-  swatchUrl: string;
-}
-
-const WOOD_TEXTURES: WoodTexture[] = [
-  {
-    id: 'Carvalho',
-    shortName: 'Carvalho',
-    fullName: 'Carvalho Mezzo',
-    tintHex: '#9d744a',
-    swatchUrl:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuCOrrwdtIaFbTEq_JMNYUvq5OwizmFJGSfMaGoeR9E3Gq5kY5C5uazJ6RaLhl0irFCSx2xZ6pDr_i1sr3zigdPGIl_pwdVrVJpFGCx8pteIIl_DkHmmegoa_D6PeH4fGgF5RcuCG9jScQ4XIv7LX9KmZzmmF7KfIT4IofaSD1-TfLURVBnMvK-uZl4qkelnJap-FhF_6NDrgocvdh94ac4cbuNobQI-gqCXoHIBonMFF0P2fHdnScp3fA',
-  },
-  {
-    id: 'Báltico',
-    shortName: 'Báltico',
-    fullName: 'Báltico',
-    tintHex: '#7d6f60',
-    swatchUrl:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuB_zNW0lOuR_6_Zo33D0t4uzcm9-ry9ngmd5Wd3asnYLuBmZN589xNLbzS1p7p1y3CrHULEgBK7EvENTfbd9WdD0HpCNKagQhQnGmIbA8IUzEv9TK532WZGwG8BCOIVAeXZXUtVTNBVxlgEZ9Z50netu0mRzbZAhjZlGQ1C2DUyv9Tx4QQlRNPzlEl1A05P_jh9pkOqpHl9_HJjz1JW-Coq588_CwSQuZ8BMorPUlgR2aaeuLzoGZumKQ',
-  },
-  {
-    id: 'Gaudí',
-    shortName: 'Gaudí',
-    fullName: 'Gaudí',
-    tintHex: '#b88958',
-    swatchUrl:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuD1o0R5sk4ufIqoHMlKZ2xFXok1AocT7Wyzoxt1hQBF1YdSDbJMnj0yrK24V63tp8qpdSmGx50kyRyv33gm-kyapoXfeROD40FYVVP-2MzxwlMS_TKovT9TkxOhHgDqJxyfgbLy__hed_zBY_tl8sawZA1Kp24-HlJWsMHdpQ3dTtnLWhoLuSjX-vMZ1EOQfB6hFVJbjAPCX5C13WtIF85ZnWP9ZuWLkhmx-gL_uvpCQwnr8AYshBVSdQ',
-  },
-  {
-    id: 'Helsinki',
-    shortName: 'Helsinki',
-    fullName: 'Helsinki',
-    tintHex: '#c5b59e',
-    swatchUrl:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuDHqqLfeJ9r0VId3yqLxofaQ-00dzE4N0b4clJaDlfM0EvgFu1NMogp3gF-AQ2pZFTI3OCTGWo93q2gU88FvA8XCziALG6HLgc7h13iEs9_K_jFPIeSQgqXhZkIztjrz5Pm9dmI9fLMJ0J-LkEXT8NvF2Asnde1A5Rzh3GQlQRu9boocT2qcY5if0irNqYv4TachqFsMcjTvZ225nnAbW7_vJe28NAVPMpk2FbXFZvKePR7LU1KsWSF5g',
-  },
-  {
-    id: 'Kiri',
-    shortName: 'Kiri',
-    fullName: 'Kiri',
-    tintHex: '#d3a36d',
-    swatchUrl:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuCKQTSXJ9XOTrKvVD3JxSLebvQsrfi6OZnUdiBirVq1BfZuJyXj8pCssjp0HLP-C6gOl-R49HyoLwPOanbJlVKl3hdloaCHQPTAfFjX7T9d8A-oTVQA_sKKNYj6cBDVjJjPCeR6OI1dG-cz9sfmBzf-s0N6hgSTv56eG5VDNN1Eh7Pd-Zwl5CkOGBszDc7TOf2b4wIAIezTLNUpiA9vZ5gAUw2DbHV0l37FYSE2NKvYu6DlDCnRMq_rGg',
-  },
-  {
-    id: 'Teka',
-    shortName: 'Teka Árt.',
-    fullName: 'Teka Ártico',
-    tintHex: '#a9a195',
-    swatchUrl:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuC1mxh4SywvuliAbsEDtUoPpKZaFr7dbY7SD_NAf3jft-IAoIqosSAOKBh6XFJDVys98Cp5_KPk6RKEsteVwyFRF0lnFGXjvs2GQMQuq3q_e2iOoKvvVPhB7TZ6hsaTzwiZG6b0_ZmNWathSwYUd9usvbufqIAP1lS6cLdtPqCZVwja11aFipqb5sJ3rEssUr76P7_1wi6YS93P33bxGwnE5ygyKnxs2F8w2Mf_d8uGuKJKBgZq0BqfjA',
-  },
-];
+import React, { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import {
+  generateFurnitureGlbUrl,
+  getInitialWoodTextures,
+  WoodTextureAsset,
+} from '../utils/glbViewerAssets';
 
 interface CatalogModel {
   id: string;
+  presetId: 'mesita' | 'secador' | 'ratona' | 'escritorio' | 'placard';
   shortTitle: string;
   fullName: string;
-  glbFile: string;
+  glbFileName: string;
+  customGlbUrl?: string;
   specsText: string;
   dimensions: string;
+  costInsumos: string;
   pvp: string;
-  image: string;
+  pngPreviewUrl: string | null;
 }
 
-const CATALOG_MODELS: CatalogModel[] = [
+const INITIAL_CATALOG_MODELS: CatalogModel[] = [
   {
     id: 'secador',
+    presetId: 'secador',
     shortTitle: 'Nórdica c/ Secador',
     fullName: 'Mesa de Noche c/ Secador',
-    glbFile: 'Mesita_Secador_blanco.glb',
+    glbFileName: 'Mesita_Secador_blanco.glb',
     specsText: '50×58×38 cm • 1 Cajón + Hueco',
     dimensions: '50x58x38',
+    costInsumos: '$35.200',
     pvp: '$92.000',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuCq-AS9_RwuIYP0HLP3graxs8ffssvg2xRjnBg44key1q3j2qAsBQSy_rEtb0fgcV8ErSzJD2cHv0r7WABPzuXkE_Yyrf8v8cnVnsnfBMfn2hv1UegYuZBBopXd8gN5J8DEFFt3mhpmRuENYSZQhq0IISaGQOOiqgHWXEKUDCirdjhaQ3UyQTu8noRGq7uOM1YUf5QE-eq_aB-DExw2wzuYk3NVxT2TaxcWah9ENMxBw9KXo6V8GUyXcA',
+    pngPreviewUrl: null,
   },
   {
     id: 'ratona',
+    presetId: 'ratona',
     shortTitle: 'Mesa Ratona Petiribí',
     fullName: 'Mesa Ratona Petiribí Maciza',
-    glbFile: 'Mesa_Ratona_Petiribi.glb',
+    glbFileName: 'Mesa_Ratona_Petiribi.glb',
     specsText: '90×45×50 cm • Maciza 2 Pulg.',
     dimensions: '90x45x50',
+    costInsumos: '$54.000',
     pvp: '$140.000',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuDWcRjd8jZ6-wvLOM6VJ0D-YxNxnlSoq2mYyadn9IddSZp1jNV-N89SW-tLwcosIl2wSOiRe6p8JtK9SBK-2QrbtmO1b-db2EnNd9d4nSSPIkM27nj3uDwOdq_cQyiVzekBKTS9MQcK8bohteuTgi5k7rLhYVY3TV_7ht1QCV_eWy15ze2Q0eoVGs3wzBlui8oEYMhBv16pVZKYtgnGz410MDyo67KhBnFXE7uXuOT8Wz-zSfDOOBRtPA',
+    pngPreviewUrl: null,
   },
   {
     id: 'escritorio',
+    presetId: 'escritorio',
     shortTitle: 'Escritorio Industrial',
     fullName: 'Escritorio Nórdico Industrial',
-    glbFile: 'Escritorio_Industrial.glb',
+    glbFileName: 'Escritorio_Industrial.glb',
     specsText: '120×75×60 cm • Cajonera triple',
     dimensions: '120x75x60',
+    costInsumos: '$88.500',
     pvp: '$230.000',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuBtmxU_CpjWmKwrUUemm2Mkx6i694Ho-Hdb9pA59E1XjPSNDa2_2ZMtnMNMoTP3PEV7ujn911ZbzGS-ZCY0pRr19lpUckRzVw2inTWOQQTmrC1PYPUwUnoYXNooiiWQK81JDNou72U2qnV_-cZDwxnDpk7d1GmG0FkKhS4--fypAnW_sl2NZ_zDLAqmDxOvt4ldoQ26T6_2a2GYhS0nSP47IqoGnF0VXM4NB3j1i2PX3B_brsersuPsBg',
+    pngPreviewUrl: null,
   },
   {
     id: 'placard',
+    presetId: 'placard',
     shortTitle: 'Placard 2 Puertas',
     fullName: 'Placard 2 Puertas Corredizas',
-    glbFile: 'Placard_2P_Corredizo.glb',
+    glbFileName: 'Placard_2P_Corredizo.glb',
     specsText: '160×220×60 cm • Riel Ducasse',
     dimensions: '160x220x60',
+    costInsumos: '$124.000',
     pvp: '$320.000',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuAa8RJ3dTP6-A8oZSpc6o32TjqEzfUFQvl8rL-Qh5yyPq1FESv345xLd7QZa1BuMkJU7dAkQhaf0m-_MoOM2uGtvBI1kAFjXItdg9Iw1-7J790X_rXUMTtoKOQTtIsImfvOLLaWornFUiNv_9WPf8WWjwYVpvamqBJFL_ZIVrKNlc3nQXil2jAs0PaoEZTpkslQ9wLeZH_LSfQG6ov0LIOqAntqJmAww3GHp_x8cadcpW_eoRvFYhYO-Q',
+    pngPreviewUrl: null,
   },
 ];
 
+const STORAGE_KEY_CATALOG_PNGS = 'taller_os_catalog_pngs_v1';
+
 export const Catalogo3DScreen: React.FC = () => {
+  const canvasMountRef = useRef<HTMLDivElement | null>(null);
+  const glbInputRef = useRef<HTMLInputElement | null>(null);
+  const pngTextureInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [woodTextures, setWoodTextures] = useState<WoodTextureAsset[]>(() =>
+    getInitialWoodTextures()
+  );
+  const [selectedTexture, setSelectedTexture] = useState<WoodTextureAsset>(
+    () => getInitialWoodTextures()[0]
+  );
   const [baseColor, setBaseColor] = useState<'white' | 'black'>('white');
-  const [selectedTexture, setSelectedTexture] = useState<WoodTexture>(WOOD_TEXTURES[0]);
   const [camView, setCamView] = useState<'auto' | 'front' | 'iso' | 'top'>('iso');
-  const [rotationAngle, setRotationAngle] = useState(0);
+
   const [modelName, setModelName] = useState('Mesita Nórdica V1');
   const [modelFile, setModelFile] = useState('Mesita_blanca.glb');
   const [dimensions, setDimensions] = useState('45x55x38');
+  const [costInsumos, setCostInsumos] = useState('$32.400');
   const [pvpPrice, setPvpPrice] = useState('$85.000');
-  const [slidesCount, setSlidesCount] = useState(1);
+
+  const [activePreset, setActivePreset] = useState<
+    'mesita' | 'secador' | 'ratona' | 'escritorio' | 'placard'
+  >('mesita');
+  const [activeGlbUrl, setActiveGlbUrl] = useState<string | null>(null);
+  const [meshNames, setMeshNames] = useState<string[]>([]);
+  const [drawerMeshTarget, setDrawerMeshTarget] = useState<string>('auto');
+  const [isLoadingGlb, setIsLoadingGlb] = useState<boolean>(true);
+
+  const [catalogModels, setCatalogModels] = useState<CatalogModel[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_CATALOG_PNGS);
+      if (saved) {
+        const parsedMap: Record<string, string> = JSON.parse(saved);
+        return INITIAL_CATALOG_MODELS.map((m) => ({
+          ...m,
+          pngPreviewUrl: parsedMap[m.id] || null,
+        }));
+      }
+    } catch {
+      // ignore storage errors
+    }
+    return INITIAL_CATALOG_MODELS;
+  });
+
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Refs for Three.js scene objects so material/camera updates don't recreate the WebGL context
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const loadedModelRef = useRef<THREE.Object3D | null>(null);
+  const camTargetPosRef = useRef<THREE.Vector3>(new THREE.Vector3(2.1, 1.65, 2.35));
+  const autoRotateRef = useRef<boolean>(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => {
       setToastMsg((prev) => (prev === msg ? null : prev));
-    }, 2200);
+    }, 2500);
   };
 
+  // Generate binary .glb URL when preset changes (unless user uploaded a custom .glb)
   useEffect(() => {
-    if (camView !== 'auto') return;
-    const interval = setInterval(() => {
-      setRotationAngle((a) => (a + 3) % 360);
-    }, 50);
-    return () => clearInterval(interval);
-  }, [camView]);
+    let active = true;
+    let generatedUrl: string | null = null;
 
-  const getMeshTransform = () => {
-    if (camView === 'auto') {
-      return `rotateY(${rotationAngle}deg)`;
-    }
-    if (camView === 'front') {
-      return 'rotateY(0deg) rotateX(0deg)';
-    }
-    if (camView === 'top') {
-      return 'rotateX(48deg) scale(0.95)';
-    }
-    return 'rotateY(0deg) rotateX(0deg)';
+    generateFurnitureGlbUrl(activePreset)
+      .then((url) => {
+        if (!active) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        generatedUrl = url;
+        setActiveGlbUrl(url);
+      })
+      .catch((err) => {
+        console.error('Error generating GLB:', err);
+      });
+
+    return () => {
+      active = false;
+      if (generatedUrl) {
+        URL.revokeObjectURL(generatedUrl);
+      }
+    };
+  }, [activePreset]);
+
+  // Apply Base Color & PNG Wood Grain Texture to the loaded .glb model meshes
+  const applyMaterialsToGlb = () => {
+    const root = loadedModelRef.current;
+    const renderer = rendererRef.current;
+    if (!root || !renderer) return;
+
+    const texLoader = new THREE.TextureLoader();
+    texLoader.load(selectedTexture.pngDataUrl, (loadedTex) => {
+      loadedTex.colorSpace = THREE.SRGBColorSpace;
+      loadedTex.wrapS = THREE.RepeatWrapping;
+      loadedTex.wrapT = THREE.RepeatWrapping;
+      loadedTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      loadedTex.flipY = false;
+      loadedTex.needsUpdate = true;
+
+      const baseHex = baseColor === 'white' ? 0xf4f3f7 : 0x181820;
+
+      root.traverse((child) => {
+        if (!(child as THREE.Mesh).isMesh) return;
+        const mesh = child as THREE.Mesh;
+        const nameLower = (mesh.name || '').toLowerCase();
+        const matNameLower = (
+          Array.isArray(mesh.material)
+            ? mesh.material[0]?.name || ''
+            : mesh.material?.name || ''
+        ).toLowerCase();
+
+        const isExplicitDrawerTarget =
+          drawerMeshTarget !== 'auto' && mesh.name === drawerMeshTarget;
+        const isAutoDrawerTarget =
+          drawerMeshTarget === 'auto' &&
+          (nameLower.includes('tapa') ||
+            nameLower.includes('cajon') ||
+            nameLower.includes('frente') ||
+            nameLower.includes('drawer') ||
+            nameLower.includes('front') ||
+            nameLower.includes('puerta') ||
+            matNameLower.includes('tapa') ||
+            matNameLower.includes('cajon'));
+
+        if (isExplicitDrawerTarget || isAutoDrawerTarget) {
+          mesh.material = new THREE.MeshStandardMaterial({
+            name: `PNG_${selectedTexture.fileName}`,
+            map: loadedTex,
+            color: 0xffffff,
+            roughness: 0.52,
+            metalness: 0.06,
+          });
+        } else if (
+          nameLower.includes('estructura') ||
+          nameLower.includes('base') ||
+          nameLower.includes('cuerpo') ||
+          nameLower.includes('lateral') ||
+          nameLower.includes('piso') ||
+          nameLower.includes('estante') ||
+          matNameLower.includes('estructura')
+        ) {
+          mesh.material = new THREE.MeshStandardMaterial({
+            name: 'Material_Estructura_Base',
+            color: baseHex,
+            roughness: baseColor === 'white' ? 0.42 : 0.35,
+            metalness: 0.08,
+          });
+        }
+      });
+    });
   };
 
-  const handleLoadModel = (m: CatalogModel) => {
+  // Initialize Three.js WebGL Viewport once
+  useEffect(() => {
+    const container = canvasMountRef.current;
+    if (!container) return;
+
+    const width = container.clientWidth || 380;
+    const height = container.clientHeight || 340;
+
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
+    camera.position.set(2.1, 1.65, 2.35);
+    cameraRef.current = camera;
+
+    const isHeadless =
+      navigator.webdriver || /HeadlessChrome/i.test(navigator.userAgent);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(isHeadless ? 1 : Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+    renderer.shadowMap.enabled = !isHeadless;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    rendererRef.current = renderer;
+
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+
+    // Studio Environment Map (RoomEnvironment)
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmremGenerator.fromScene(
+      new RoomEnvironment(),
+      0.04
+    ).texture;
+    pmremGenerator.dispose();
+
+    // Studio 3-Point Lighting Rig
+    const hemiLight = new THREE.HemisphereLight(0xe5e0ef, 0x1c1a25, 0.65);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xfff6ed, 1.6);
+    keyLight.position.set(3.5, 5.5, 4.0);
+    keyLight.castShadow = !isHeadless;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0xc7bfff, 0.75);
+    rimLight.position.set(-3.5, 2.5, -3.0);
+    scene.add(rimLight);
+
+    // Subtle Floor Grid & Contact Shadow Plane
+    const gridHelper = new THREE.GridHelper(6, 16, 0x664cff, 0x35333f);
+    gridHelper.position.y = 0;
+    (gridHelper.material as THREE.Material).opacity = 0.28;
+    (gridHelper.material as THREE.Material).transparent = true;
+    scene.add(gridHelper);
+
+    const shadowPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(6, 6),
+      new THREE.ShadowMaterial({ opacity: 0.38 })
+    );
+    shadowPlane.rotation.x = -Math.PI / 2;
+    shadowPlane.position.y = 0.005;
+    shadowPlane.receiveShadow = true;
+    scene.add(shadowPlane);
+
+    // OrbitControls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 0.68, 0);
+    controls.minDistance = 1.2;
+    controls.maxDistance = 6.5;
+    controls.maxPolarAngle = Math.PI / 2 - 0.02;
+    controlsRef.current = controls;
+
+    const clock = new THREE.Clock();
+    let reqId = 0;
+
+    const animate = () => {
+      reqId = requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), 0.1);
+
+      if (autoRotateRef.current && loadedModelRef.current) {
+        loadedModelRef.current.rotation.y += delta * 0.85;
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    const handleResize = () => {
+      if (!container || !renderer || !camera) return;
+      const w = container.clientWidth || 380;
+      const h = container.clientHeight || 340;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(reqId);
+      controls.dispose();
+      renderer.dispose();
+    };
+  }, []);
+
+  // Load .GLB model via GLTFLoader whenever activeGlbUrl changes
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene || !activeGlbUrl) return;
+
+    setIsLoadingGlb(true);
+    const loader = new GLTFLoader();
+
+    loader.load(
+      activeGlbUrl,
+      (gltf) => {
+        if (loadedModelRef.current) {
+          scene.remove(loadedModelRef.current);
+        }
+
+        const model = gltf.scene;
+        const foundMeshes: string[] = [];
+
+        model.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const m = child as THREE.Mesh;
+            m.castShadow = true;
+            m.receiveShadow = true;
+            if (m.name) foundMeshes.push(m.name);
+          }
+        });
+
+        // Normalize scale & center on workshop floor (y = 0)
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z) || 1;
+        const targetScale = 1.45 / maxDim;
+
+        model.scale.setScalar(targetScale);
+
+        const scaledBox = new THREE.Box3().setFromObject(model);
+        const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+        model.position.x += -scaledCenter.x;
+        model.position.z += -scaledCenter.z;
+        model.position.y += -scaledBox.min.y + 0.01;
+
+        scene.add(model);
+        loadedModelRef.current = model;
+        setMeshNames(foundMeshes);
+        setIsLoadingGlb(false);
+        applyMaterialsToGlb();
+      },
+      undefined,
+      (err) => {
+        console.error('Error loading GLB file:', err);
+        setIsLoadingGlb(false);
+        showToast('Error al parsear el archivo .GLB');
+      }
+    );
+  }, [activeGlbUrl]);
+
+  // Re-apply materials whenever baseColor, selectedTexture, or drawerMeshTarget changes
+  useEffect(() => {
+    applyMaterialsToGlb();
+  }, [baseColor, selectedTexture, drawerMeshTarget]);
+
+  // Update Camera View Mode
+  const handleSelectCameraView = (view: 'auto' | 'front' | 'iso' | 'top') => {
+    setCamView(view);
+    autoRotateRef.current = view === 'auto';
+
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls) return;
+
+    if (loadedModelRef.current && view !== 'auto') {
+      loadedModelRef.current.rotation.y = 0;
+    }
+
+    if (view === 'front') {
+      camera.position.set(0, 0.85, 2.75);
+      controls.target.set(0, 0.68, 0);
+      showToast('Cámara: Vista Frontal 0°');
+    } else if (view === 'iso') {
+      camera.position.set(2.1, 1.65, 2.35);
+      controls.target.set(0, 0.68, 0);
+      showToast('Cámara: Isométrica 30°');
+    } else if (view === 'top') {
+      camera.position.set(0, 3.2, 0.45);
+      controls.target.set(0, 0.5, 0);
+      showToast('Cámara: Vista de Planta');
+    } else if (view === 'auto') {
+      showToast('Rotación orbital 360° activada');
+    }
+    controls.update();
+  };
+
+  // Handler: Upload custom .GLB file exported from Blender
+  const handleUploadGlbFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.glb') && !file.name.toLowerCase().endsWith('.gltf')) {
+      showToast('Selecciona un archivo 3D en formato .glb exportado de Blender');
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setModelFile(file.name);
+    setModelName(file.name.replace(/\.(glb|gltf)$/i, '').replace(/_/g, ' '));
+    setDrawerMeshTarget('auto');
+    setActiveGlbUrl(objectUrl);
+    showToast(`Modelo Blender cargado: ${file.name}`);
+    e.target.value = '';
+  };
+
+  // Handler: Upload custom .PNG Wood Grain Texture for Drawer Fronts
+  const handleUploadWoodPng = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.includes('png') && !file.name.toLowerCase().endsWith('.png')) {
+      showToast('Por favor selecciona una textura en formato .PNG');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const cleanName = file.name.replace(/\.png$/i, '');
+      const newTex: WoodTextureAsset = {
+        id: `custom-${Date.now()}`,
+        shortName: cleanName.slice(0, 10),
+        fullName: cleanName,
+        fileName: file.name,
+        baseHex: '#9d744a',
+        grainHex: '#6e4c2a',
+        pngDataUrl: dataUrl,
+      };
+      setWoodTextures((prev) => [newTex, ...prev]);
+      setSelectedTexture(newTex);
+      showToast(`Textura de veta .PNG aplicada: ${file.name}`);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Handler: Upload custom .PNG Image for a Catalog Model ("Otros Modelos")
+  const handleUploadCatalogModelPng = (
+    modelId: string,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.includes('png') && !file.name.toLowerCase().endsWith('.png')) {
+      showToast('La imagen del catálogo debe estar en formato .PNG');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setCatalogModels((prev) => {
+        const updated = prev.map((m) =>
+          m.id === modelId ? { ...m, pngPreviewUrl: dataUrl } : m
+        );
+        try {
+          const mapToSave: Record<string, string> = {};
+          updated.forEach((item) => {
+            if (item.pngPreviewUrl) mapToSave[item.id] = item.pngPreviewUrl;
+          });
+          localStorage.setItem(STORAGE_KEY_CATALOG_PNGS, JSON.stringify(mapToSave));
+        } catch {
+          // ignore storage quota errors
+        }
+        return updated;
+      });
+      showToast(`Imagen .PNG asignada al modelo en catálogo`);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Handler: Upload custom .GLB for a Catalog Card
+  const handleUploadCatalogModelGlb = (
+    modelId: string,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const blobUrl = URL.createObjectURL(file);
+    setCatalogModels((prev) =>
+      prev.map((m) =>
+        m.id === modelId
+          ? { ...m, glbFileName: file.name, customGlbUrl: blobUrl }
+          : m
+      )
+    );
+    showToast(`Archivo ${file.name} vinculado al modelo del catálogo`);
+    e.target.value = '';
+  };
+
+  const handleLoadCatalogModel = (m: CatalogModel) => {
     setModelName(m.fullName);
-    setModelFile(m.glbFile);
+    setModelFile(m.glbFileName);
     setDimensions(m.dimensions);
+    setCostInsumos(m.costInsumos);
     setPvpPrice(m.pvp);
-    showToast(`Modelo cargado: ${m.glbFile}`);
+    setDrawerMeshTarget('auto');
+    if (m.customGlbUrl) {
+      setActiveGlbUrl(m.customGlbUrl);
+    } else {
+      setActivePreset(m.presetId);
+    }
+    showToast(`Cargado en visor WebGL: ${m.glbFileName}`);
   };
 
   return (
@@ -175,48 +570,61 @@ export const Catalogo3DScreen: React.FC = () => {
               Catálogo &amp; Visor 3D
             </h1>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary-container text-on-primary-container font-label-md text-label-md font-semibold tracking-wide shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-surface-tint animate-ping"></span>
-              WEBGL ACTIVO
+              <span className="w-2 h-2 rounded-full bg-surface-tint"></span>
+              WEBGL .GLB ACTIVO
             </span>
           </div>
-          <div className="flex items-center gap-1.5 text-on-surface-variant font-label-md text-label-md bg-surface-container-high/80 px-2.5 py-1 rounded-full">
-            <span className="material-symbols-outlined text-[16px] text-primary">view_in_ar</span>
-            <span>Three.js v158</span>
-          </div>
+
+          {/* Direct Blender .GLB File Upload Trigger */}
+          <input
+            ref={glbInputRef}
+            type="file"
+            accept=".glb,.gltf"
+            onChange={handleUploadGlbFile}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => glbInputRef.current?.click()}
+            className="flex items-center gap-1.5 text-primary hover:text-on-primary hover:bg-primary font-label-md text-label-md bg-surface-container-high px-3 py-1.5 rounded-full transition-all active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[16px]">upload_file</span>
+            <span>Cargar .GLB (Blender)</span>
+          </button>
         </div>
         <p className="font-body-md text-body-md text-on-surface-variant">
-          Previsualización tridimensional táctil y despiece paramétrico de insumos por modelo.
+          Previsualización tridimensional WebGL (.glb) y mapeo de texturas de vetas (.png) en
+          tapas de cajón.
         </p>
       </div>
 
-      {/* Contenedor Maestro: Visor 3D Interactivo */}
+      {/* Contenedor Maestro: Visor 3D Interactivo Three.js */}
       <div className="relative w-full rounded-3xl bg-surface-container-low overflow-hidden shadow-2xl flex flex-col">
         {/* Top Bar Overlay del Canvas */}
         <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container-lowest/80 backdrop-blur-md text-on-surface font-label-md text-label-md pointer-events-auto">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container-lowest/90 text-on-surface font-label-md text-label-md pointer-events-auto">
             <span className="w-2 h-2 rounded-full bg-tertiary"></span>
-            <span className="font-semibold text-primary">60 FPS</span>
+            <span className="font-semibold text-primary">GLTFLoader</span>
             <span className="text-outline-variant">•</span>
-            <span className="text-on-surface-variant">Órbita 360° táctil</span>
+            <span className="text-on-surface-variant truncate max-w-[160px]">
+              {modelFile}
+            </span>
           </div>
 
           <div className="flex items-center gap-1.5 pointer-events-auto">
             <button
               type="button"
-              onClick={() => showToast('Iniciando sesión WebXR / Visor AR...')}
-              className="w-9 h-9 rounded-full bg-surface-container-lowest/80 backdrop-blur-md text-on-surface flex items-center justify-center hover:bg-primary-container hover:text-on-primary-container transition-all active:scale-90"
-              title="Ver en Realidad Aumentada / Pantalla Completa"
+              onClick={() => glbInputRef.current?.click()}
+              className="px-2.5 h-9 rounded-full bg-surface-container-lowest/90 text-on-surface flex items-center gap-1 hover:bg-primary-container hover:text-on-primary-container transition-all active:scale-90 text-[11px] font-label-md"
+              title="Importar modelo .glb exportado desde Blender"
             >
-              <span className="material-symbols-outlined text-[18px]">view_in_ar</span>
+              <span className="material-symbols-outlined text-[16px]">view_in_ar</span>
+              <span>Importar .GLB</span>
             </button>
             <button
               type="button"
-              onClick={() => {
-                setCamView('iso');
-                setRotationAngle(0);
-                showToast('Cámara restablecida');
-              }}
-              className="w-9 h-9 rounded-full bg-surface-container-lowest/80 backdrop-blur-md text-on-surface flex items-center justify-center hover:bg-surface-container-high active:scale-90 transition-all"
+              onClick={() => handleSelectCameraView('iso')}
+              className="w-9 h-9 rounded-full bg-surface-container-lowest/90 text-on-surface flex items-center justify-center hover:bg-surface-container-high active:scale-90 transition-all"
               title="Resetear Vista"
             >
               <span className="material-symbols-outlined text-[18px]">restart_alt</span>
@@ -224,112 +632,40 @@ export const Catalogo3DScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Simulación Canvas 3D WebGL con Iluminación de Estudio y Grilla */}
-        <div className="relative w-full h-80 sm:h-96 bg-gradient-to-b from-surface-container-lowest via-surface-container to-surface-container-low flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing select-none">
-          {/* Luces ambientales de estudio */}
-          <div className="absolute -top-10 -left-10 w-60 h-60 rounded-full bg-primary/10 blur-3xl pointer-events-none"></div>
-          <div className="absolute -bottom-10 -right-10 w-60 h-60 rounded-full bg-tertiary-container/15 blur-3xl pointer-events-none"></div>
-
-          {/* Grilla de Suelo de Perspectiva 3D SVG */}
-          <svg
-            className="absolute inset-0 w-full h-full opacity-25 pointer-events-none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <pattern
-                height="32"
-                id="grid-pattern"
-                patternUnits="userSpaceOnUse"
-                width="32"
-              >
-                <path
-                  d="M 32 0 L 0 0 0 32"
-                  fill="none"
-                  stroke="#928ea2"
-                  strokeDasharray="2,2"
-                  strokeWidth="0.75"
-                />
-              </pattern>
-              <radialGradient cx="50%" cy="60%" id="fade-radial" r="50%">
-                <stop offset="0%" stopColor="#fff" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#fff" stopOpacity="0" />
-              </radialGradient>
-              <mask id="grid-mask">
-                <rect fill="url(#fade-radial)" height="100%" width="100%" />
-              </mask>
-            </defs>
-            <rect
-              fill="url(#grid-pattern)"
-              height="100%"
-              mask="url(#grid-mask)"
-              width="100%"
-            />
-            <ellipse
-              cx="50%"
-              cy="75%"
-              fill="#000000"
-              filter="blur(10px)"
-              opacity="0.6"
-              rx="110"
-              ry="24"
-            />
-          </svg>
-
-          {/* Representación visual fotorrealista del Mueble 3D con texturizado reactivo */}
+        {/* Dedicated Three.js WebGL Canvas Mount */}
+        <div className="relative w-full h-80 sm:h-96 bg-gradient-to-b from-surface-container-lowest via-surface-container to-surface-container-low overflow-hidden select-none">
           <div
-            className="relative z-10 flex flex-col items-center transition-transform duration-300"
-            style={{ transform: getMeshTransform() }}
-          >
-            <div className="relative w-56 h-60 flex items-center justify-center">
-              <img
-                className="w-full h-full object-contain transition-all duration-300"
-                alt={modelName}
-                referrerPolicy="no-referrer"
-                style={{
-                  filter:
-                    baseColor === 'white'
-                      ? 'drop-shadow(0 18px 24px rgba(0,0,0,0.65)) brightness(1)'
-                      : 'drop-shadow(0 18px 24px rgba(0,0,0,0.85)) brightness(0.42) contrast(1.2)',
-                }}
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuB53bF4-cJ84ldMBYz0hNtJ9O5eG1UvLbRxWwxrmCovxMB_ImQn5UZX4SCDWZF1FHjfyWHpol7ln_xXIItpHUl78vi5tzPiOu3qG4U9YoBl8-cXq9g07goptHboESYAJ2hJg3S7v8on270xmjZFiFFt4uim4O3Lqe0uPP_3yRB_9I-SclV1qIKbOate2VVjkUpmyJW1HSZTa1CYz3D-WaPLjQGZBRL5GHBkw3Cgo6rDtbx6DXBMQk-jbw"
-              />
-              {/* Placa de Veta Frontal Texturizada Inteligente */}
-              <div
-                className="absolute w-36 h-14 rounded-sm shadow-md transition-all duration-300 flex items-center justify-center"
-                style={{
-                  top: '36%',
-                  left: '24%',
-                  backgroundImage: `url('${selectedTexture.swatchUrl}')`,
-                  backgroundColor: selectedTexture.tintHex,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              >
-                <div className="w-8 h-1 rounded-full bg-surface-container-lowest/80 shadow-inner"></div>
+            ref={canvasMountRef}
+            className="w-full h-full cursor-grab active:cursor-grabbing"
+          />
+
+          {isLoadingGlb && (
+            <div className="absolute inset-0 flex items-center justify-center bg-surface-container-lowest/60 pointer-events-none">
+              <div className="px-4 py-2 rounded-full bg-surface-container-high text-on-surface text-label-md flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary animate-spin text-[18px]">
+                  progress_activity
+                </span>
+                <span>Cargando geometría .GLB...</span>
               </div>
             </div>
+          )}
 
-            {/* Tag de Modelo Flotante con Telemetría */}
-            <div className="mt-1 px-3 py-1 rounded-full bg-surface-container-high/90 backdrop-blur-md flex items-center gap-2 shadow-lg">
-              <span className="font-title-sm text-label-md font-bold text-on-surface">
-                {modelName}
-              </span>
-              <span className="text-outline-variant font-label-md">•</span>
-              <span className="font-label-md text-primary">{modelFile}</span>
-            </div>
+          {/* Tag de Modelo Flotante */}
+          <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full bg-surface-container-high/95 flex items-center gap-2 shadow-lg pointer-events-none whitespace-nowrap">
+            <span className="font-title-sm text-label-md font-bold text-on-surface">
+              {modelName}
+            </span>
+            <span className="text-outline-variant font-label-md">•</span>
+            <span className="font-label-md text-primary font-mono">{modelFile}</span>
           </div>
 
           {/* Barra de Herramientas de Cámara / Órbita */}
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 bg-surface-container-lowest/85 backdrop-blur-xl rounded-full shadow-lg">
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 bg-surface-container-lowest/90 rounded-full shadow-lg">
             <button
               type="button"
-              onClick={() => {
-                const next = camView === 'auto' ? 'iso' : 'auto';
-                setCamView(next);
-                showToast(
-                  next === 'auto' ? 'Rotación automática iniciada' : 'Rotación pausada'
-                );
-              }}
+              onClick={() =>
+                handleSelectCameraView(camView === 'auto' ? 'iso' : 'auto')
+              }
               className={`px-2.5 py-1.5 rounded-full font-label-md text-label-md flex items-center gap-1 transition-all active:scale-95 ${
                 camView === 'auto'
                   ? 'bg-primary-container text-on-primary-container font-semibold'
@@ -341,10 +677,7 @@ export const Catalogo3DScreen: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setCamView('front');
-                showToast('Cámara: Frontal 0°');
-              }}
+              onClick={() => handleSelectCameraView('front')}
               className={`px-2.5 py-1.5 rounded-full font-label-md text-label-md transition-all active:scale-95 ${
                 camView === 'front'
                   ? 'bg-primary-container text-on-primary-container font-semibold'
@@ -355,10 +688,7 @@ export const Catalogo3DScreen: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setCamView('iso');
-                showToast('Cámara: Isométrica 30°');
-              }}
+              onClick={() => handleSelectCameraView('iso')}
               className={`px-2.5 py-1.5 rounded-full font-label-md text-label-md transition-all active:scale-95 ${
                 camView === 'iso'
                   ? 'bg-primary-container text-on-primary-container font-semibold'
@@ -369,10 +699,7 @@ export const Catalogo3DScreen: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setCamView('top');
-                showToast('Cámara: Vista de Planta (Superior)');
-              }}
+              onClick={() => handleSelectCameraView('top')}
               className={`px-2.5 py-1.5 rounded-full font-label-md text-label-md transition-all active:scale-95 ${
                 camView === 'top'
                   ? 'bg-primary-container text-on-primary-container font-semibold'
@@ -384,7 +711,7 @@ export const Catalogo3DScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Panel de Configuración Paramétrica de Materiales y Vetas */}
+        {/* Panel de Configuración Paramétrica de Materiales (.GLB) y Vetas (.PNG) */}
         <div className="p-space-md flex flex-col gap-space-md bg-surface-container-low">
           {/* 1. Color de Base / Cuerpo del Mueble */}
           <div className="flex flex-col gap-2">
@@ -405,7 +732,7 @@ export const Catalogo3DScreen: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setBaseColor('white');
-                  setModelFile('Mesita_blanca.glb');
+                  if (modelFile === 'Mesita_negra.glb') setModelFile('Mesita_blanca.glb');
                   showToast('Base cambiada a Blanco Semi-Mate');
                 }}
                 className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${
@@ -435,7 +762,7 @@ export const Catalogo3DScreen: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setBaseColor('black');
-                  setModelFile('Mesita_negra.glb');
+                  if (modelFile === 'Mesita_blanca.glb') setModelFile('Mesita_negra.glb');
                   showToast('Base cambiada a Negro Grafito');
                 }}
                 className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${
@@ -463,29 +790,68 @@ export const Catalogo3DScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* 2. Texturizado Inteligente de Vetas para Frente de Cajón */}
+          {/* 2. Texturizado Inteligente de Vetas (.PNG) para Tapa de Cajón */}
           <div className="flex flex-col gap-2 pt-1">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[18px] text-tertiary">
                   texture
                 </span>
                 <span className="font-label-md text-label-md text-on-surface font-semibold">
-                  Veta Inteligente (Tapa de Cajón)
+                  Veta de Tapa de Cajón (Texturas .PNG)
                 </span>
               </div>
-              <span className="font-label-md text-[11px] text-tertiary font-medium">
-                {selectedTexture.fullName}
-              </span>
-            </div>
-            <p className="font-label-md text-[11px] text-on-surface-variant leading-relaxed">
-              La textura seleccionada se proyecta exclusivamente en el frente de apertura
-              respetando cantos perimetrales.
-            </p>
 
-            {/* Rail Horizontal Scrolleable de Muestras de Textura */}
+              <div className="flex items-center gap-2">
+                <span className="font-label-md text-[11px] text-tertiary font-mono">
+                  {selectedTexture.fileName}
+                </span>
+                <input
+                  ref={pngTextureInputRef}
+                  type="file"
+                  accept=".png,image/png"
+                  onChange={handleUploadWoodPng}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => pngTextureInputRef.current?.click()}
+                  className="px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-primary hover:text-on-primary text-primary font-label-md text-[11px] font-semibold flex items-center gap-1 transition-all active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-[14px]">add_photo_alternate</span>
+                  <span>+ Subir .PNG</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="font-label-md text-[11px] text-on-surface-variant leading-relaxed">
+                La textura en formato <strong>.png</strong> se proyecta sobre la malla de tapa
+                de cajón del modelo <strong>.glb</strong>.
+              </p>
+
+              {meshNames.length > 0 && (
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  <span className="text-on-surface-variant">Malla Tapa:</span>
+                  <select
+                    value={drawerMeshTarget}
+                    onChange={(e) => setDrawerMeshTarget(e.target.value)}
+                    className="bg-surface-container-high text-on-surface rounded-lg px-2 py-1 text-[11px] font-mono outline-none"
+                  >
+                    <option value="auto">Auto (Tapa_Cajon / Frente)</option>
+                    {meshNames.map((mName) => (
+                      <option key={mName} value={mName}>
+                        {mName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Rail Horizontal Scrolleable de Muestras de Textura (.PNG) */}
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-              {WOOD_TEXTURES.map((tex) => {
+              {woodTextures.map((tex) => {
                 const isSelected = selectedTexture.id === tex.id;
                 return (
                   <button
@@ -493,7 +859,7 @@ export const Catalogo3DScreen: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setSelectedTexture(tex);
-                      showToast(`Veta actualizada: ${tex.fullName}`);
+                      showToast(`Textura aplicada: ${tex.fileName}`);
                     }}
                     className={`shrink-0 flex flex-col items-center gap-1.5 p-1.5 rounded-2xl transition-all active:scale-95 group ${
                       isSelected
@@ -503,8 +869,11 @@ export const Catalogo3DScreen: React.FC = () => {
                   >
                     <div
                       className="w-16 h-16 rounded-xl overflow-hidden relative shadow-md bg-cover bg-center"
-                      style={{ backgroundImage: `url('${tex.swatchUrl}')` }}
+                      style={{ backgroundImage: `url('${tex.pngDataUrl}')` }}
                     >
+                      <span className="absolute bottom-0.5 right-0.5 px-1 rounded bg-black/70 text-[8px] font-mono text-white">
+                        .PNG
+                      </span>
                       {isSelected && (
                         <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
                           <span className="material-symbols-outlined text-[18px] text-primary font-bold">
@@ -530,8 +899,8 @@ export const Catalogo3DScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Telemetría & Especificaciones del Modelo (Bento Grid) */}
-      <div className="grid grid-cols-2 gap-space-sm">
+      {/* Telemetría & Especificaciones del Modelo (Sin Mano de Obra) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-sm">
         <div className="p-space-md rounded-2xl bg-surface-container-low flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between text-on-surface-variant mb-1">
             <span className="font-label-md text-label-md">Cotas Generales</span>
@@ -552,24 +921,6 @@ export const Catalogo3DScreen: React.FC = () => {
 
         <div className="p-space-md rounded-2xl bg-surface-container-low flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between text-on-surface-variant mb-1">
-            <span className="font-label-md text-label-md">Mano de Obra</span>
-            <span className="material-symbols-outlined text-[18px] text-tertiary">schedule</span>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-1">
-              <span className="font-headline-md text-headline-md text-on-surface font-bold">
-                4.5
-              </span>
-              <span className="font-label-md text-label-md text-on-surface-variant">hs</span>
-            </div>
-            <p className="font-label-md text-[11px] text-on-surface-variant mt-0.5">
-              Armado + Lustre final
-            </p>
-          </div>
-        </div>
-
-        <div className="p-space-md rounded-2xl bg-surface-container-low flex flex-col justify-between shadow-sm">
-          <div className="flex items-center justify-between text-on-surface-variant mb-1">
             <span className="font-label-md text-label-md">Costo Insumos</span>
             <span className="material-symbols-outlined text-[18px] text-on-surface-variant">
               shopping_cart_checkout
@@ -578,7 +929,7 @@ export const Catalogo3DScreen: React.FC = () => {
           <div>
             <div className="flex items-baseline gap-1">
               <span className="font-headline-md text-headline-md text-on-surface font-bold">
-                $32.400
+                {costInsumos}
               </span>
               <span className="font-label-md text-[10px] text-on-surface-variant">ARS</span>
             </div>
@@ -666,7 +1017,7 @@ export const Catalogo3DScreen: React.FC = () => {
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="font-label-md text-label-md text-on-surface font-semibold truncate">
-                  Frente {selectedTexture.fullName} 18mm
+                  Frente {selectedTexture.fullName} 18mm ({selectedTexture.fileName})
                 </span>
                 <span className="font-label-md text-[11px] text-on-surface-variant">
                   Tapa de cajón frontal
@@ -723,7 +1074,7 @@ export const Catalogo3DScreen: React.FC = () => {
             </div>
             <div className="flex flex-col items-end shrink-0 pl-2">
               <span className="font-title-sm text-label-md text-on-surface font-bold">
-                {slidesCount} Par
+                1 Par
               </span>
               <span className="font-label-md text-[10px] text-on-surface-variant font-mono">
                 Kit
@@ -806,88 +1157,7 @@ export const Catalogo3DScreen: React.FC = () => {
         </button>
       </div>
 
-      {/* CRUD Interactivo Rápido de Insumos (Stepper Touch para Taller) */}
-      <div className="flex flex-col gap-3 p-space-md rounded-3xl bg-surface-container-low shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px] text-primary">
-              add_shopping_cart
-            </span>
-            <h3 className="font-title-sm text-title-sm text-on-surface font-bold">
-              Ajuste Rápido de Stock Asociado
-            </h3>
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-md text-[11px]">
-            Táctil
-          </span>
-        </div>
-
-        <p className="font-body-md text-[13px] text-on-surface-variant">
-          Ajusta cantidades asignadas de Correderas Telescópicas Ducasse para la próxima orden
-          sin teclear:
-        </p>
-
-        {/* Caliper / Contador Táctil Ergonómico */}
-        <div className="flex items-center justify-between p-3 rounded-2xl bg-surface-container">
-          <div className="flex flex-col">
-            <span className="font-label-md text-label-md text-on-surface font-semibold">
-              Correderas Telescópicas 35cm
-            </span>
-            <span className="font-label-md text-[11px] text-primary font-mono">
-              {slidesCount === 1
-                ? 'Costo: $5.800 ARS / par'
-                : `Subtotal: $${(slidesCount * 5800).toLocaleString('es-AR')} ARS`}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="font-display text-[28px] font-bold text-on-surface font-mono">
-              {slidesCount}
-            </span>
-            <span className="font-label-md text-label-md text-on-surface-variant">pares</span>
-          </div>
-        </div>
-
-        {/* Bloque de Teclas Rápidas Táctiles */}
-        <div className="grid grid-cols-5 gap-1.5">
-          <button
-            type="button"
-            onClick={() => setSlidesCount((c) => Math.max(1, c - 5))}
-            className="h-11 rounded-xl bg-surface-container-high hover:bg-surface-bright text-on-surface active:scale-95 font-label-md text-label-md font-bold transition-all flex items-center justify-center"
-          >
-            -5
-          </button>
-          <button
-            type="button"
-            onClick={() => setSlidesCount((c) => Math.max(1, c - 1))}
-            className="h-11 rounded-xl bg-surface-container-high hover:bg-surface-bright text-on-surface active:scale-95 font-label-md text-label-md font-bold transition-all flex items-center justify-center"
-          >
-            -1
-          </button>
-          <button
-            type="button"
-            onClick={() => setSlidesCount(1)}
-            className="h-11 rounded-xl bg-surface-container text-on-surface-variant hover:text-on-surface active:scale-95 font-label-md text-[11px] font-medium transition-all flex items-center justify-center"
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            onClick={() => setSlidesCount((c) => c + 1)}
-            className="h-11 rounded-xl bg-primary-container/60 hover:bg-primary-container text-on-primary-container active:scale-95 font-label-md text-label-md font-bold transition-all flex items-center justify-center"
-          >
-            +1
-          </button>
-          <button
-            type="button"
-            onClick={() => setSlidesCount((c) => c + 5)}
-            className="h-11 rounded-xl bg-primary-container text-on-primary-container active:scale-95 font-label-md text-label-md font-bold transition-all flex items-center justify-center"
-          >
-            +5
-          </button>
-        </div>
-      </div>
-
-      {/* Galería Horizontal de Modelos del Catálogo (Muebles J&L) */}
+      {/* Galería Horizontal de Modelos del Catálogo (Carga personalizada de archivo .PNG y .GLB) */}
       <div className="flex flex-col gap-space-sm pt-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -897,27 +1167,66 @@ export const Catalogo3DScreen: React.FC = () => {
             </h2>
           </div>
           <span className="font-label-md text-[12px] text-primary font-medium">
-            4 modelos listos
+            Portada .PNG personalizada
           </span>
         </div>
 
         <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 snap-x">
-          {CATALOG_MODELS.map((m) => (
+          {catalogModels.map((m) => (
             <div
               key={m.id}
               className="snap-start shrink-0 w-64 p-3 rounded-3xl bg-surface-container-low flex flex-col justify-between gap-3 shadow-md"
             >
-              <div className="relative w-full h-32 rounded-2xl overflow-hidden bg-surface-container">
-                <img
-                  className="w-full h-full object-cover"
-                  alt={m.shortTitle}
-                  referrerPolicy="no-referrer"
-                  src={m.image}
-                />
-                <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-surface-container-lowest/80 backdrop-blur-md text-on-surface font-label-md text-[10px] font-mono">
-                  GLB Ready
+              {/* Custom .PNG Upload Area per Catalog Model */}
+              <div className="relative w-full h-36 rounded-2xl overflow-hidden bg-surface-container flex flex-col items-center justify-center border border-outline-variant/30">
+                {m.pngPreviewUrl ? (
+                  <>
+                    <img
+                      className="w-full h-full object-cover"
+                      alt={m.shortTitle}
+                      src={m.pngPreviewUrl}
+                    />
+                    <label
+                      title="Cambiar imagen .PNG del modelo"
+                      className="absolute bottom-2 right-2 px-2.5 py-1 rounded-full bg-surface-container-lowest/90 hover:bg-primary text-on-surface hover:text-on-primary font-label-md text-[10px] font-semibold flex items-center gap-1 cursor-pointer shadow-md transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">upload</span>
+                      <span>Cambiar .PNG</span>
+                      <input
+                        type="file"
+                        accept=".png,image/png"
+                        onChange={(e) => handleUploadCatalogModelPng(m.id, e)}
+                        className="hidden"
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <label className="w-full h-full flex flex-col items-center justify-center gap-1.5 p-3 text-center cursor-pointer hover:bg-surface-container-high/60 transition-colors">
+                    <div className="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-primary">
+                      <span className="material-symbols-outlined text-[20px]">
+                        add_photo_alternate
+                      </span>
+                    </div>
+                    <span className="font-label-md text-[11px] font-semibold text-primary">
+                      Cargar Imagen .PNG
+                    </span>
+                    <span className="text-[10px] text-on-surface-variant">
+                      Subir portada .png del modelo
+                    </span>
+                    <input
+                      type="file"
+                      accept=".png,image/png"
+                      onChange={(e) => handleUploadCatalogModelPng(m.id, e)}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+
+                <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-surface-container-lowest/85 text-on-surface font-label-md text-[10px] font-mono">
+                  {m.glbFileName}
                 </span>
               </div>
+
               <div className="flex flex-col">
                 <h3 className="font-label-md text-label-md text-on-surface font-bold truncate">
                   {m.shortTitle}
@@ -929,14 +1238,30 @@ export const Catalogo3DScreen: React.FC = () => {
                   {m.pvp} ARS
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => handleLoadModel(m)}
-                className="w-full h-10 rounded-full bg-surface-container-high hover:bg-primary-container hover:text-on-primary-container text-on-surface transition-all active:scale-95 flex items-center justify-center gap-1.5 font-label-md text-label-md font-semibold"
-              >
-                <span className="material-symbols-outlined text-[17px]">view_in_ar</span>
-                <span>Cargar en 3D</span>
-              </button>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleLoadCatalogModel(m)}
+                  className="flex-1 h-10 rounded-full bg-surface-container-high hover:bg-primary-container hover:text-on-primary-container text-on-surface transition-all active:scale-95 flex items-center justify-center gap-1.5 font-label-md text-label-md font-semibold"
+                >
+                  <span className="material-symbols-outlined text-[17px]">view_in_ar</span>
+                  <span>Cargar .GLB</span>
+                </button>
+
+                <label
+                  title="Vincular archivo .GLB exportado de Blender a este modelo"
+                  className="w-10 h-10 rounded-full bg-surface-container hover:bg-surface-bright text-on-surface-variant hover:text-primary flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                >
+                  <span className="material-symbols-outlined text-[17px]">upload_file</span>
+                  <input
+                    type="file"
+                    accept=".glb,.gltf"
+                    onChange={(e) => handleUploadCatalogModelGlb(m.id, e)}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
           ))}
         </div>

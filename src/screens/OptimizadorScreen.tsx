@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useWorkshopCloud } from '../context/WorkshopCloudContext';
 
 interface BoardOption {
@@ -260,9 +260,19 @@ export const OptimizadorScreen: React.FC = () => {
     removeCut,
     clearAllCuts,
     restoreDefaultCuts,
+    createInventoryItem,
     isCloudConnected,
   } = useWorkshopCloud();
   const [boardIndex, setBoardIndex] = useState(0);
+  const [boardPrice, setBoardPrice] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('taller_os_board_price_v1');
+      if (saved) return Math.max(1, Number(saved));
+    } catch {
+      // ignore
+    }
+    return 104000;
+  });
   const [kerfMm, setKerfMm] = useState<number>(3.2);
   const [isRecomputing, setIsRecomputing] = useState(false);
   const [isVerticalGrain, setIsVerticalGrain] = useState(false);
@@ -285,11 +295,91 @@ export const OptimizadorScreen: React.FC = () => {
 
   const currentBoard = BOARD_OPTIONS[boardIndex];
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('taller_os_board_price_v1', String(boardPrice));
+    } catch {
+      // ignore quota error
+    }
+  }, [boardPrice]);
+
+  // Area and m² price calculations based on whole board price
+  const boardAreaM2 = (currentBoard.lengthMm * currentBoard.widthMm) / 1_000_000;
+  const pricePerM2 = boardAreaM2 > 0 ? boardPrice / boardAreaM2 : 0;
+
+  const computeCutPrice = (lengthMm: number, widthMm: number) => {
+    const areaM2 = (lengthMm * widthMm) / 1_000_000;
+    return Math.round(areaM2 * pricePerM2);
+  };
+
+  const totalCutsValue = useMemo(() => {
+    return cuts.reduce((acc, c) => {
+      const unitVal = computeCutPrice(c.lengthMm, c.widthMm);
+      return acc + unitVal * c.quantity;
+    }, 0);
+  }, [cuts, pricePerM2]);
+
   const triggerToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => {
       setToastMsg((prev) => (prev === msg ? null : prev));
     }, 2600);
+  };
+
+  const handleSaveAllCutsToInventory = () => {
+    if (cuts.length === 0) {
+      triggerToast('No hay cortes asignados para guardar en el inventario');
+      return;
+    }
+    let totalPieces = 0;
+    cuts.forEach((c) => {
+      const unitVal = computeCutPrice(c.lengthMm, c.widthMm);
+      const cutArea = ((c.lengthMm * c.widthMm) / 1_000_000).toFixed(2);
+      createInventoryItem({
+        id: `corte-${Date.now()}-${c.id}`,
+        cat: 'placas',
+        categoryLabel: 'Corte de Placa',
+        specLabel: `• ${c.lengthMm} × ${c.widthMm} mm (${cutArea} m²) • ${currentBoard.name}`,
+        cornerTag: `${c.lengthMm}×${c.widthMm}`,
+        title: c.name,
+        priceLabel: `$${unitVal.toLocaleString('es-AR')} / unidad`,
+        image: currentBoard.image,
+        stock: c.quantity,
+        minSuggested: 1,
+        unit: 'un',
+        statusType: 'optimo',
+        urgentButtonLabel: 'Corte de Placa',
+        urgentButtonIcon: 'content_cut',
+      });
+      totalPieces += c.quantity;
+    });
+    triggerToast(
+      `¡${cuts.length} cortes (${totalPieces} piezas) guardados en Inventario con sus precios!`
+    );
+  };
+
+  const handleSaveSingleCutToInventory = (c: CutItem) => {
+    const unitVal = computeCutPrice(c.lengthMm, c.widthMm);
+    const cutArea = ((c.lengthMm * c.widthMm) / 1_000_000).toFixed(2);
+    createInventoryItem({
+      id: `corte-${Date.now()}-${c.id}`,
+      cat: 'placas',
+      categoryLabel: 'Corte de Placa',
+      specLabel: `• ${c.lengthMm} × ${c.widthMm} mm (${cutArea} m²) • ${currentBoard.name}`,
+      cornerTag: `${c.lengthMm}×${c.widthMm}`,
+      title: c.name,
+      priceLabel: `$${unitVal.toLocaleString('es-AR')} / unidad`,
+      image: currentBoard.image,
+      stock: c.quantity,
+      minSuggested: 1,
+      unit: 'un',
+      statusType: 'optimo',
+      urgentButtonLabel: 'Corte de Placa',
+      urgentButtonIcon: 'content_cut',
+    });
+    triggerToast(
+      `"${c.name}" guardado en Inventario ($${unitVal.toLocaleString('es-AR')} • ${c.lengthMm}×${c.widthMm} mm)`
+    );
   };
 
   // Real-time 2D Guillotine Layout Calculation
@@ -469,6 +559,48 @@ export const OptimizadorScreen: React.FC = () => {
           </button>
         </div>
 
+        {/* Board Price & m² Rate Config */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-2xl bg-surface-container gap-2.5 border border-primary/20 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-primary-container/40 text-primary flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[20px]">payments</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[11px] font-label-md text-on-surface-variant uppercase tracking-wider font-semibold">
+                Precio de Placa Entera
+              </span>
+              <span className="text-[12px] text-on-surface font-medium">
+                {currentBoard.lengthMm} × {currentBoard.widthMm} mm ({boardAreaM2.toFixed(2)} m²)
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 justify-between sm:justify-end">
+            <div className="flex items-center gap-1.5 bg-surface-container-high px-3 py-1.5 rounded-xl border border-outline-variant/30 focus-within:border-primary">
+              <span className="text-primary font-bold text-[14px]">$</span>
+              <input
+                type="number"
+                min="0"
+                step="1000"
+                value={boardPrice}
+                onChange={(e) => setBoardPrice(Math.max(0, Number(e.target.value)))}
+                aria-label="Precio de la placa"
+                className="w-24 bg-transparent font-telemetry-num text-[15px] font-bold text-on-surface focus:outline-none"
+              />
+              <span className="text-[11px] text-on-surface-variant font-mono">ARS</span>
+            </div>
+
+            <div className="flex flex-col items-end px-2.5 py-1 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/20">
+              <span className="text-[9px] uppercase tracking-wider text-on-surface-variant font-semibold">
+                Valor por m²
+              </span>
+              <span className="text-[12px] font-bold text-tertiary font-telemetry-num">
+                ${Math.round(pricePerM2).toLocaleString('es-AR')}/m²
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Optimization Trigger Button */}
         <button
           type="button"
@@ -557,7 +689,7 @@ export const OptimizadorScreen: React.FC = () => {
           </div>
 
           {/* Quick Telemetry Pillars */}
-          <div className="grid grid-cols-2 gap-space-xs flex-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-space-xs flex-1">
             <div className="bg-surface-container p-2.5 rounded-2xl flex flex-col">
               <span className="font-telemetry-unit text-telemetry-unit uppercase text-on-surface-variant font-medium">
                 Área Útil
@@ -568,6 +700,19 @@ export const OptimizadorScreen: React.FC = () => {
               </span>
               <span className="font-label-md text-[10px] text-on-surface-variant leading-tight">
                 {layout.usedAreaMm2.toLocaleString('es-AR')} mm²
+              </span>
+            </div>
+
+            <div className="bg-surface-container p-2.5 rounded-2xl flex flex-col">
+              <span className="font-telemetry-unit text-telemetry-unit uppercase text-on-surface-variant font-medium">
+                Valor Cortes
+              </span>
+              <span className="font-telemetry-num text-telemetry-num text-tertiary font-bold mt-0.5">
+                ${totalCutsValue.toLocaleString('es-AR')}{' '}
+                <span className="text-label-md text-on-surface-variant font-normal">ARS</span>
+              </span>
+              <span className="font-label-md text-[10px] text-on-surface-variant leading-tight">
+                Placa: ${boardPrice.toLocaleString('es-AR')}
               </span>
             </div>
 
@@ -920,10 +1065,20 @@ export const OptimizadorScreen: React.FC = () => {
               </h2>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md font-medium">
                 {cuts.length} Tipos • {layout.totalRequested} Piezas
               </span>
+              <button
+                type="button"
+                onClick={handleSaveAllCutsToInventory}
+                disabled={cuts.length === 0}
+                className="px-3 py-1 rounded-full bg-secondary text-on-secondary font-label-md text-label-md font-semibold flex items-center gap-1.5 active:scale-95 transition-all shadow-sm disabled:opacity-40 disabled:pointer-events-none"
+                title="Guardar todos los cortes en Inventario con sus medidas y precios"
+              >
+                <span className="material-symbols-outlined text-[16px]">inventory_2</span>
+                <span>Guardar en Inventario</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setShowAddForm(!showAddForm)}
@@ -1087,6 +1242,10 @@ export const OptimizadorScreen: React.FC = () => {
             <div className="flex flex-col gap-1.5">
               {cuts.map((cut, index) => {
                 const isSelected = selectedCutId === cut.id;
+                const cutAreaM2 = (cut.lengthMm * cut.widthMm) / 1_000_000;
+                const unitPrice = computeCutPrice(cut.lengthMm, cut.widthMm);
+                const subtotalPrice = unitPrice * cut.quantity;
+
                 return (
                   <div
                     key={cut.id}
@@ -1106,9 +1265,19 @@ export const OptimizadorScreen: React.FC = () => {
                         {index + 1}
                       </span>
                       <div className="flex flex-col min-w-0">
-                        <span className="font-title-sm text-body-lg text-on-surface font-semibold truncate leading-tight">
-                          {cut.name}
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-title-sm text-body-lg text-on-surface font-semibold truncate leading-tight">
+                            {cut.name}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-primary-container/40 text-primary font-label-md text-[11px] font-bold">
+                            ${unitPrice.toLocaleString('es-AR')} / un.
+                          </span>
+                          {cut.quantity > 1 && (
+                            <span className="text-[11px] text-on-surface-variant font-mono">
+                              (${subtotalPrice.toLocaleString('es-AR')} total)
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           <span
                             className={`font-label-md text-label-md font-bold ${
@@ -1116,6 +1285,9 @@ export const OptimizadorScreen: React.FC = () => {
                             }`}
                           >
                             {cut.lengthMm} × {cut.widthMm} mm
+                          </span>
+                          <span className="text-on-surface-variant font-label-md text-[11px]">
+                            • {cutAreaM2.toFixed(2)} m²
                           </span>
                           <span className="text-on-surface-variant font-label-md text-[10px]">
                             • {cut.edgeSpec}
@@ -1159,6 +1331,16 @@ export const OptimizadorScreen: React.FC = () => {
                           waves
                         </span>
                       )}
+
+                      {/* Quick Save Single Cut to Inventory Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleSaveSingleCutToInventory(cut)}
+                        title="Guardar este corte en Inventario con su precio y medidas"
+                        className="w-8 h-8 rounded-full bg-surface-container-high hover:bg-secondary hover:text-on-secondary text-secondary flex items-center justify-center transition-colors active:scale-95"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">inventory_2</span>
+                      </button>
 
                       {/* Delete Cut Button */}
                       <button

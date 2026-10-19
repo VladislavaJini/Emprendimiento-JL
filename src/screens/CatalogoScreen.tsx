@@ -3,7 +3,7 @@ import { ScreenId } from '../types';
 
 export interface MainComponentItem {
   id: string;
-  role: 'Piso' | 'Techo' | 'Lateral Izquierdo' | 'Lateral Derecho' | 'Divisor / Estante' | 'Fondo';
+  role: string;
   name: string;
   dimensionsMm: string;
   material: string;
@@ -691,6 +691,15 @@ export const CatalogoScreen: React.FC<CatalogoScreenProps> = ({ onNavigate }) =>
   const [newDrawerHwUnit, setNewDrawerHwUnit] = useState('un');
   const [newDrawerHwQty, setNewDrawerHwQty] = useState(2);
 
+  // Add New Wood Piece / Madera State
+  const [showAddWoodModal, setShowAddWoodModal] = useState<string | null>(null);
+  const [editingWoodId, setEditingWoodId] = useState<string | null>(null);
+  const [newWoodName, setNewWoodName] = useState('');
+  const [newWoodRole, setNewWoodRole] = useState('Piso');
+  const [newWoodMaterial, setNewWoodMaterial] = useState('Melamina Blanco Puro 18mm');
+  const [newWoodDims, setNewWoodDims] = useState('450 × 380 × 18 mm');
+  const [newWoodQty, setNewWoodQty] = useState(1);
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_CATALOG_SPEC, JSON.stringify(furnitureList));
@@ -704,6 +713,71 @@ export const CatalogoScreen: React.FC<CatalogoScreenProps> = ({ onNavigate }) =>
     setTimeout(() => {
       setToastMsg((prev) => (prev === msg ? null : prev));
     }, 2400);
+  };
+
+  // Update Any Field of Main Wood Component
+  const handleUpdateMainComponent = (
+    furnitureId: string,
+    compId: string,
+    partial: Partial<MainComponentItem>
+  ) => {
+    setFurnitureList((prev) =>
+      prev.map((f) =>
+        f.id === furnitureId
+          ? {
+              ...f,
+              mainComponents: f.mainComponents.map((c) =>
+                c.id === compId ? { ...c, ...partial } : c
+              ),
+            }
+          : f
+      )
+    );
+  };
+
+  // Add a New Wood Component to the furniture
+  const handleAddWoodComponent = (furnitureId: string) => {
+    if (!newWoodName.trim()) {
+      showToast('Ingresa el nombre de la madera / pieza');
+      return;
+    }
+    const created: MainComponentItem = {
+      id: `mc-${Date.now()}`,
+      role: newWoodRole.trim() || 'Estante',
+      name: newWoodName.trim(),
+      material: newWoodMaterial.trim() || 'Melamina 18mm',
+      dimensionsMm: newWoodDims.trim() || '450 × 380 × 18 mm',
+      quantity: Math.max(1, Number(newWoodQty) || 1),
+    };
+    setFurnitureList((prev) =>
+      prev.map((f) =>
+        f.id === furnitureId
+          ? { ...f, mainComponents: [...f.mainComponents, created] }
+          : f
+      )
+    );
+    setNewWoodName('');
+    setShowAddWoodModal(null);
+    showToast(`Madera "${created.name}" agregada a la estructura`);
+  };
+
+  // Remove a Wood Component from the furniture
+  const handleRemoveMainComponent = (
+    furnitureId: string,
+    compId: string,
+    compName: string
+  ) => {
+    setFurnitureList((prev) =>
+      prev.map((f) =>
+        f.id === furnitureId
+          ? {
+              ...f,
+              mainComponents: f.mainComponents.filter((c) => c.id !== compId),
+            }
+          : f
+      )
+    );
+    showToast(`Madera "${compName}" eliminada del mueble`);
   };
 
   // Update Main Structural Component Quantity or Dimensions
@@ -1127,96 +1201,339 @@ export const CatalogoScreen: React.FC<CatalogoScreenProps> = ({ onNavigate }) =>
               {/* Desplegable Detallado al Seleccionar el Mueble */}
               {isOpen && (
                 <div className="px-5 pb-5 pt-1 flex flex-col gap-space-md border-t border-outline-variant/20">
-                  {/* 1. Componentes Principales (Piso, Techo y Laterales) */}
+                  {/* 1. Componentes Principales (Maderas del Mueble - Editables, Añadibles y Eliminables) */}
                   <div className="flex flex-col gap-2.5 pt-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-primary text-[19px]">
                           layers
                         </span>
                         <h2 className="font-title-sm text-title-sm font-bold text-on-surface">
-                          1. Componentes Principales (Piso, Techo y Laterales)
+                          1. Maderas y Componentes de Placa
                         </h2>
                       </div>
-                      <span className="text-[11px] font-label-md text-on-surface-variant">
-                        Estructura de Placa
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-label-md text-on-surface-variant">
+                          {furniture.mainComponents.length} piezas
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddWoodModal(showAddWoodModal === furniture.id ? null : furniture.id)}
+                          className="px-2.5 py-1 rounded-full bg-primary text-on-primary font-label-md text-[11px] font-semibold flex items-center gap-1 active:scale-95 transition-all shadow-xs"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">add</span>
+                          <span>+ Añadir Madera</span>
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                      {furniture.mainComponents.map((comp) => (
-                        <div
-                          key={comp.id}
-                          className="p-3 rounded-2xl bg-surface-container-low flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
-                        >
-                          <div className="flex flex-col min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="px-2 py-0.5 rounded-md bg-primary-container/30 text-primary-fixed font-label-md text-[10px] font-bold uppercase tracking-wider">
-                                {comp.role}
-                              </span>
-                              <span className="font-body-md font-semibold text-on-surface truncate">
-                                {comp.name}
-                              </span>
-                            </div>
-                            <span className="text-[11px] text-on-surface-variant mt-0.5">
-                              {comp.material}
-                            </span>
-                          </div>
+                    {/* Formulario para Añadir Nueva Madera */}
+                    {showAddWoodModal === furniture.id && (
+                      <div className="p-3.5 rounded-2xl bg-surface-container border border-primary/30 flex flex-col gap-2.5 my-1 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="font-label-md text-label-md text-primary font-bold uppercase tracking-wider">
+                            Nueva Madera / Pieza para {furniture.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowAddWoodModal(null)}
+                            className="text-on-surface-variant hover:text-on-surface"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">close</span>
+                          </button>
+                        </div>
 
-                          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] text-on-surface-variant font-medium">
+                              Nombre de la Madera / Pieza
+                            </label>
                             <input
                               type="text"
-                              value={comp.dimensionsMm}
-                              onChange={(e) =>
-                                handleUpdateMainComponentDims(
-                                  furniture.id,
-                                  comp.id,
-                                  e.target.value
-                                )
-                              }
-                              title="Medida de la pieza (editable)"
-                              className="w-36 h-8 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-mono text-[12px] text-center focus:outline-none border border-outline-variant/20 focus:border-primary"
+                              value={newWoodName}
+                              onChange={(e) => setNewWoodName(e.target.value)}
+                              placeholder="Ej: Estante Regulable / Fondo / Tapa Refuerzo"
+                              className="h-9 px-3 rounded-xl bg-surface-container-high text-on-surface text-[12px] focus:outline-none focus:ring-1 focus:ring-primary"
                             />
+                          </div>
 
-                            <div className="flex items-center gap-1 bg-surface-container-high rounded-full p-0.5">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleUpdateMainComponentQty(
-                                    furniture.id,
-                                    comp.id,
-                                    comp.quantity - 1
-                                  )
-                                }
-                                className="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-bright text-on-surface flex items-center justify-center active:scale-90"
-                              >
-                                <span className="material-symbols-outlined text-[15px]">
-                                  remove
-                                </span>
-                              </button>
-                              <span className="w-7 text-center font-telemetry-num text-[13px] font-bold text-on-surface">
-                                {comp.quantity}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleUpdateMainComponentQty(
-                                    furniture.id,
-                                    comp.id,
-                                    comp.quantity + 1
-                                  )
-                                }
-                                className="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-bright text-on-surface flex items-center justify-center active:scale-90"
-                              >
-                                <span className="material-symbols-outlined text-[15px]">
-                                  add
-                                </span>
-                              </button>
-                            </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] text-on-surface-variant font-medium">
+                              Rol / Etiqueta Estructural
+                            </label>
+                            <input
+                              type="text"
+                              value={newWoodRole}
+                              onChange={(e) => setNewWoodRole(e.target.value)}
+                              placeholder="Piso, Techo, Lateral, Estante, Fondo, Divisor..."
+                              className="h-9 px-3 rounded-xl bg-surface-container-high text-on-surface text-[12px] focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
                           </div>
                         </div>
-                      ))}
-                    </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <div className="flex flex-col gap-1 sm:col-span-1">
+                            <label className="text-[10px] text-on-surface-variant font-medium">
+                              Material
+                            </label>
+                            <input
+                              type="text"
+                              value={newWoodMaterial}
+                              onChange={(e) => setNewWoodMaterial(e.target.value)}
+                              placeholder="Melamina 18mm"
+                              className="h-9 px-3 rounded-xl bg-surface-container-high text-on-surface text-[12px] focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                          </div>
+
+                          <div className="flex flex-col gap-1 sm:col-span-1">
+                            <label className="text-[10px] text-on-surface-variant font-medium">
+                              Medidas (mm)
+                            </label>
+                            <input
+                              type="text"
+                              value={newWoodDims}
+                              onChange={(e) => setNewWoodDims(e.target.value)}
+                              placeholder="450 × 380 × 18 mm"
+                              className="h-9 px-3 rounded-xl bg-surface-container-high text-on-surface font-mono text-[12px] focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                          </div>
+
+                          <div className="flex flex-col gap-1 sm:col-span-1">
+                            <label className="text-[10px] text-on-surface-variant font-medium">
+                              Cantidad
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={newWoodQty}
+                              onChange={(e) => setNewWoodQty(Number(e.target.value))}
+                              className="h-9 px-3 rounded-xl bg-surface-container-high text-on-surface font-mono text-[12px] focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setShowAddWoodModal(null)}
+                            className="px-3.5 h-8 rounded-full bg-surface-container-high text-on-surface font-label-md text-[12px]"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAddWoodComponent(furniture.id)}
+                            className="px-4 h-8 rounded-full bg-primary text-on-primary font-label-md text-[12px] font-semibold active:scale-95"
+                          >
+                            + Guardar Madera
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Lista Dinámica de Maderas */}
+                    {furniture.mainComponents.length === 0 ? (
+                      <div className="p-4 rounded-2xl bg-surface-container-low text-center text-on-surface-variant text-[12px]">
+                        No hay maderas asignadas a este mueble. Usa el botón superior para añadir una.
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {furniture.mainComponents.map((comp) => {
+                          const isEditingThis = editingWoodId === comp.id;
+                          return (
+                            <div
+                              key={comp.id}
+                              className={`p-3 rounded-2xl transition-all border ${
+                                isEditingThis
+                                  ? 'bg-surface-container border-primary/50 shadow-md'
+                                  : 'bg-surface-container-low border-outline-variant/15 hover:border-outline-variant/30'
+                              } flex flex-col gap-2`}
+                            >
+                              {isEditingThis ? (
+                                /* Modo Edición Completa */
+                                <div className="flex flex-col gap-2.5">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-label-md text-primary font-bold uppercase tracking-wider">
+                                      Modificar Madera / Pieza
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingWoodId(null);
+                                        showToast(`Madera "${comp.name}" actualizada`);
+                                      }}
+                                      className="px-3 py-1 rounded-full bg-primary text-on-primary font-label-md text-[11px] font-semibold active:scale-95"
+                                    >
+                                      Guardar
+                                    </button>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] text-on-surface-variant font-medium">
+                                        Nombre de la Pieza
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={comp.name}
+                                        onChange={(e) =>
+                                          handleUpdateMainComponent(furniture.id, comp.id, {
+                                            name: e.target.value,
+                                          })
+                                        }
+                                        className="h-8 px-2.5 rounded-lg bg-surface-container-highest text-on-surface text-[12px] font-medium focus:outline-none border border-outline-variant/30 focus:border-primary"
+                                      />
+                                    </div>
+
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] text-on-surface-variant font-medium">
+                                        Rol / Etiqueta
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={comp.role}
+                                        onChange={(e) =>
+                                          handleUpdateMainComponent(furniture.id, comp.id, {
+                                            role: e.target.value,
+                                          })
+                                        }
+                                        className="h-8 px-2.5 rounded-lg bg-surface-container-highest text-on-surface text-[12px] font-medium focus:outline-none border border-outline-variant/30 focus:border-primary"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] text-on-surface-variant font-medium">
+                                        Material
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={comp.material}
+                                        onChange={(e) =>
+                                          handleUpdateMainComponent(furniture.id, comp.id, {
+                                            material: e.target.value,
+                                          })
+                                        }
+                                        className="h-8 px-2.5 rounded-lg bg-surface-container-highest text-on-surface text-[12px] focus:outline-none border border-outline-variant/30 focus:border-primary"
+                                      />
+                                    </div>
+
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] text-on-surface-variant font-medium">
+                                        Medidas (Largo × Ancho × Espesor)
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={comp.dimensionsMm}
+                                        onChange={(e) =>
+                                          handleUpdateMainComponent(furniture.id, comp.id, {
+                                            dimensionsMm: e.target.value,
+                                          })
+                                        }
+                                        className="h-8 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-mono text-[12px] focus:outline-none border border-outline-variant/30 focus:border-primary"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                /* Modo Ficha con Controles Rápidos, Modificar y Eliminar */
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                  <div className="flex flex-col min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="px-2 py-0.5 rounded-md bg-primary-container/30 text-primary font-label-md text-[10px] font-bold uppercase tracking-wider">
+                                        {comp.role}
+                                      </span>
+                                      <span className="font-body-md font-semibold text-on-surface truncate">
+                                        {comp.name}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-on-surface-variant flex-wrap">
+                                      <span>{comp.material}</span>
+                                      <span>•</span>
+                                      <span className="font-mono text-on-surface font-medium">
+                                        {comp.dimensionsMm}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+                                    {/* Stepper Cantidad */}
+                                    <div className="flex items-center gap-1 bg-surface-container-high rounded-full p-0.5">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleUpdateMainComponentQty(
+                                            furniture.id,
+                                            comp.id,
+                                            comp.quantity - 1
+                                          )
+                                        }
+                                        className="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-bright text-on-surface flex items-center justify-center active:scale-90"
+                                        title="Restar cantidad"
+                                      >
+                                        <span className="material-symbols-outlined text-[15px]">
+                                          remove
+                                        </span>
+                                      </button>
+                                      <span className="w-7 text-center font-telemetry-num text-[13px] font-bold text-on-surface">
+                                        {comp.quantity}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleUpdateMainComponentQty(
+                                            furniture.id,
+                                            comp.id,
+                                            comp.quantity + 1
+                                          )
+                                        }
+                                        className="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-bright text-on-surface flex items-center justify-center active:scale-90"
+                                        title="Sumar cantidad"
+                                      >
+                                        <span className="material-symbols-outlined text-[15px]">
+                                          add
+                                        </span>
+                                      </button>
+                                    </div>
+
+                                    {/* Botón Modificar Todo */}
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingWoodId(comp.id)}
+                                      title="Modificar nombre, rol, material y medidas"
+                                      className="w-8 h-8 rounded-full bg-surface-container-high hover:bg-primary hover:text-on-primary text-on-surface-variant flex items-center justify-center transition-colors active:scale-95"
+                                    >
+                                      <span className="material-symbols-outlined text-[16px]">
+                                        edit
+                                      </span>
+                                    </button>
+
+                                    {/* Botón Eliminar Madera */}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleRemoveMainComponent(
+                                          furniture.id,
+                                          comp.id,
+                                          comp.name
+                                        )
+                                      }
+                                      title="Eliminar esta madera del mueble"
+                                      className="w-8 h-8 rounded-full bg-surface-container-high hover:bg-error-container hover:text-on-error-container text-on-surface-variant flex items-center justify-center transition-colors active:scale-95"
+                                    >
+                                      <span className="material-symbols-outlined text-[16px]">
+                                        delete
+                                      </span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* 2. Herrajes Correspondientes del Mueble (Edición directa de cantidades) */}

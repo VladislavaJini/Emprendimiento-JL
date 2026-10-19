@@ -5,7 +5,7 @@ import {
   useWorkshopCloud,
 } from '../context/WorkshopCloudContext';
 
-type CategoryId = 'all' | CloudInventoryCat;
+type CategoryId = 'all' | CloudInventoryCat | 'cortes';
 type InventoryItem = CloudInventoryItem;
 
 const DEFAULT_IMAGES: Record<CloudInventoryCat, string> = {
@@ -140,12 +140,29 @@ export const InventarioScreen: React.FC = () => {
   };
 
   const filteredItems = items.filter((item) => {
-    const matchesCat = selectedCategory === 'all' || item.cat === selectedCategory;
+    let matchesCat = false;
+    if (selectedCategory === 'all') {
+      matchesCat = true;
+    } else if (selectedCategory === 'cortes') {
+      matchesCat =
+        item.categoryLabel.toLowerCase().includes('corte') ||
+        item.urgentButtonIcon === 'content_cut';
+    } else if (selectedCategory === 'placas') {
+      matchesCat =
+        item.cat === 'placas' &&
+        !item.categoryLabel.toLowerCase().includes('corte') &&
+        item.urgentButtonIcon !== 'content_cut';
+    } else {
+      matchesCat = item.cat === selectedCategory;
+    }
+
     const matchesSearch =
       !searchQuery.trim() ||
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.categoryLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.specLabel.toLowerCase().includes(searchQuery.toLowerCase());
+      item.specLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.cornerTag.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.priceLabel.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCrit =
       !onlyCritical || item.statusType === 'critico' || item.statusType === 'bajo';
     return matchesCat && matchesSearch && matchesCrit;
@@ -174,7 +191,7 @@ export const InventarioScreen: React.FC = () => {
           </div>
         </div>
         <p className="font-body-md text-body-md text-on-surface-variant">
-          Agrega, edita o elimina placas, cantos, herrajes e insumos en tiempo real.
+          Agrega, edita o elimina placas, cortes, cantos, herrajes e insumos en tiempo real.
         </p>
       </div>
 
@@ -188,7 +205,7 @@ export const InventarioScreen: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-12 pl-11 pr-10 rounded-full bg-surface-container-high text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant/60 focus:outline-none focus:bg-surface-container-highest transition-all"
-            placeholder="Buscar por código, placa, espesor, marca..."
+            placeholder="Buscar por código, corte, placa, espesor, medidas..."
             type="text"
           />
           <button
@@ -213,9 +230,23 @@ export const InventarioScreen: React.FC = () => {
             [
               { id: 'all', label: 'Todos', count: items.length },
               {
+                id: 'cortes',
+                label: 'Cortes de Placa',
+                count: items.filter(
+                  (i) =>
+                    i.categoryLabel.toLowerCase().includes('corte') ||
+                    i.urgentButtonIcon === 'content_cut'
+                ).length,
+              },
+              {
                 id: 'placas',
-                label: 'Placas & Melaminas',
-                count: items.filter((i) => i.cat === 'placas').length,
+                label: 'Placas Enteras',
+                count: items.filter(
+                  (i) =>
+                    i.cat === 'placas' &&
+                    !i.categoryLabel.toLowerCase().includes('corte') &&
+                    i.urgentButtonIcon !== 'content_cut'
+                ).length,
               },
               {
                 id: 'cantos',
@@ -368,8 +399,21 @@ export const InventarioScreen: React.FC = () => {
                   </div>
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-md text-[11px] font-medium">
-                        {item.categoryLabel}
+                      <span
+                        className={`px-2 py-0.5 rounded-full font-label-md text-[11px] font-semibold flex items-center gap-1 ${
+                          item.categoryLabel.toLowerCase().includes('corte') ||
+                          item.urgentButtonIcon === 'content_cut'
+                            ? 'bg-secondary-container text-on-secondary-container'
+                            : 'bg-surface-container-high text-on-surface-variant'
+                        }`}
+                      >
+                        {(item.categoryLabel.toLowerCase().includes('corte') ||
+                          item.urgentButtonIcon === 'content_cut') && (
+                          <span className="material-symbols-outlined text-[13px]">
+                            content_cut
+                          </span>
+                        )}
+                        <span>{item.categoryLabel}</span>
                       </span>
                       <span className="text-on-surface-variant font-label-md text-[11px]">
                         {item.specLabel}
